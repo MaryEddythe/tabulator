@@ -10,7 +10,7 @@ function doPost(e) {
 function doGet(e) {
     const action = e.parameter.action;
     const category = e.parameter.category || 'overall';
-    
+
     if (action === 'getResults') {
         return getResults(category);
     } else {
@@ -22,7 +22,7 @@ function submitScore(data) {
     try {
         const sheet = getSheet(data.category);
         const timestamp = new Date();
-        
+
         // Prepare row data
         const rowData = [
             timestamp,
@@ -30,16 +30,16 @@ function submitScore(data) {
             data.candidateNumber,
             data.totalScore
         ];
-        
+
         // Add individual criterion scores
         const criteria = getCategoryCriteria(data.category);
         criteria.forEach(criterion => {
             rowData.push(data.scores[criterion.name] || 0);
         });
-        
+
         // Add new row to sheet
         sheet.appendRow(rowData);
-        
+
         return createResponse('success', 'Score submitted successfully');
     } catch (error) {
         return createResponse('error', error.message);
@@ -50,21 +50,26 @@ function getResults(category) {
     try {
         const sheet = getSheet(category);
         const data = sheet.getDataRange().getValues();
-        
+
         if (data.length <= 1) {
-            return createResponse('success', { results: [] });
+            return ContentService
+                .createTextOutput(JSON.stringify({
+                    status: 'success',
+                    results: []
+                }))
+                .setMimeType(ContentService.MimeType.JSON);
         }
-        
+
         // Skip header row
         const rows = data.slice(1);
         const results = calculateResults(rows, category);
-        
+
         return ContentService
             .createTextOutput(JSON.stringify({
                 status: 'success',
                 results: results
             }))
-            .setMimetype(ContentService.MimeType.JSON);
+            .setMimeType(ContentService.MimeType.JSON);
     } catch (error) {
         return createResponse('error', error.message);
     }
@@ -73,46 +78,46 @@ function getResults(category) {
 function calculateResults(rows, category) {
     const candidateScores = {};
     const criteria = getCategoryCriteria(category);
-    
+
     // Group scores by candidate
     rows.forEach(row => {
         const candidate = row[2]; // candidate number
         const totalScore = row[3]; // total score
-        
+
         if (!candidateScores[candidate]) {
             candidateScores[candidate] = {
                 totalScores: [],
                 criterionScores: {}
             };
-            
+
             // Initialize criterion scores object
             criteria.forEach((criterion, index) => {
                 candidateScores[candidate].criterionScores[criterion.name] = [];
             });
         }
-        
+
         // Add total score
         candidateScores[candidate].totalScores.push(totalScore);
-        
+
         // Add individual criterion scores (starting from column 4)
         criteria.forEach((criterion, index) => {
             const criterionScore = row[4 + index] || 0;
             candidateScores[candidate].criterionScores[criterion.name].push(criterionScore);
         });
     });
-    
+
     // Calculate averages for each candidate
     const results = [];
     for (const [candidate, scores] of Object.entries(candidateScores)) {
         // Calculate average total score
         const totalAvg = scores.totalScores.reduce((sum, score) => sum + score, 0) / scores.totalScores.length;
-        
+
         // Calculate average for each criterion
         const avgScores = {};
         for (const [criterionName, criterionScores] of Object.entries(scores.criterionScores)) {
             avgScores[criterionName] = criterionScores.reduce((sum, score) => sum + score, 0) / criterionScores.length;
         }
-        
+
         results.push({
             candidate: candidate,
             totalScore: totalAvg,
@@ -120,10 +125,10 @@ function calculateResults(rows, category) {
             numberOfScores: scores.totalScores.length
         });
     }
-    
+
     // Sort by total score (descending)
     results.sort((a, b) => b.totalScore - a.totalScore);
-    
+
     return results;
 }
 
@@ -166,23 +171,23 @@ function getCategoryCriteria(category) {
             { name: "Overall Impact", percentage: 25 }
         ]
     };
-    
+
     return criteriaMap[category] || criteriaMap.overall;
 }
 
 function getSheet(category) {
     const SPREADSHEET_ID = '1gR29ljdFWJjYfu5t3hG-keJlGaDp8uUDDlrg_uPxD28';
     const sheetName = getSheetName(category);
-    
+
     const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
     let sheet = spreadsheet.getSheetByName(sheetName);
-    
+
     // Create sheet if it doesn't exist
     if (!sheet) {
         sheet = spreadsheet.insertSheet(sheetName);
         createSheetHeaders(sheet, category);
     }
-    
+
     return sheet;
 }
 
@@ -195,22 +200,22 @@ function getSheetName(category) {
         interview: 'Interview Scores',
         overall: 'Overall Scores'
     };
-    
+
     return sheetNames[category] || 'Scores';
 }
 
 function createSheetHeaders(sheet, category) {
     const criteria = getCategoryCriteria(category);
-    
+
     // Create header row
     const headers = ['Timestamp', 'Judge Name', 'Candidate Number', 'Total Score'];
     criteria.forEach(criterion => {
         headers.push(criterion.name);
     });
-    
+
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
     sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
-    
+
     // Auto-resize columns
     sheet.autoResizeColumns(1, headers.length);
 }
@@ -220,14 +225,14 @@ function createResponse(status, message, data = null) {
         status: status,
         message: message
     };
-    
+
     if (data) {
         response.data = data;
     }
-    
+
     return ContentService
         .createTextOutput(JSON.stringify(response))
-        .setMimetype(ContentService.MimeType.JSON);
+        .setMimeType(ContentService.MimeType.JSON);
 }
 
 // Function to create all sheets at once (run this once manually)

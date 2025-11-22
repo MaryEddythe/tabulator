@@ -1,6 +1,6 @@
 // Replace this with your Google Apps Script Web App URL
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxj6lXF7zkHGnIgMKQ0ZGxrNT4vw8dLsn3nCDs3mqqA_b-aX5oLWUNFe03xoNkXhzHGXg/exec';
-// DEPLOYMENT ID AKfycbxj6lXF7zkHGnIgMKQ0ZGxrNT4vw8dLsn3nCDs3mqqA_b-aX5oLWUNFe03xoNkXhzHGXg
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwkrSiL9I_7NzNJ0ULxdRoQrfzUr-quPlz87raa_pgfUBx-ckahy68e3YqYPM6CfRFriQ/exec';
+// DEPLOYMENT ID AKfycbzFduq-6Pf4g6_LidXtXws4XNLTVtDDbrNeMbzSr_2kYwkIrsixXsA9_IQGRxL_Np_PSw
 class PageantJudgingSystem {
     constructor() {
         this.currentCategory = 'talent';
