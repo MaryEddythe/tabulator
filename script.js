@@ -1,6 +1,6 @@
 // Replace this with your Google Apps Script Web App URL
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwkrSiL9I_7NzNJ0ULxdRoQrfzUr-quPlz87raa_pgfUBx-ckahy68e3YqYPM6CfRFriQ/exec';
-// DEPLOYMENT ID AKfycbzFduq-6Pf4g6_LidXtXws4XNLTVtDDbrNeMbzSr_2kYwkIrsixXsA9_IQGRxL_Np_PSw
+
 class PageantJudgingSystem {
     constructor() {
         this.currentCategory = 'talent';
@@ -211,13 +211,13 @@ class PageantJudgingSystem {
     }
 
     async submitScore(data) {
-        const response = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data)
+        // Use GET with query params to avoid CORS preflight issues
+        const params = new URLSearchParams({
+            action: 'submitScore',
+            data: JSON.stringify(data)
         });
+        
+        const response = await fetch(`${SCRIPT_URL}?${params.toString()}`);
 
         if (!response.ok) {
             throw new Error('Network response was not ok');
