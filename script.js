@@ -43,14 +43,13 @@ class PageantJudgingSystem {
             this.logoutBtn.id = 'logoutBtn';
             this.logoutBtn.type = 'button';
             this.logoutBtn.textContent = 'Logout / Change Role';
-            this.logoutBtn.className = 'logout-btn';
-            this.logoutBtn.style.display = 'none';
-            if (this.mainContent) {
-                this.mainContent.prepend(this.logoutBtn);
-            } else {
-                document.body.prepend(this.logoutBtn);
-            }
-        }
+            this.logoutBtn.className = 'logout-btn hidden';
+             if (this.mainContent) {
+                 this.mainContent.prepend(this.logoutBtn);
+             } else {
+                 document.body.prepend(this.logoutBtn);
+             }
+         }
         this.logoutBtn.addEventListener('click', () => this.logout());
 
         // references for UI enhancements
@@ -131,7 +130,7 @@ class PageantJudgingSystem {
         document.body.style.overflow = '';
 
         // Show logout button so user can switch role
-        if (this.logoutBtn) this.logoutBtn.style.display = 'inline-block';
+        if (this.logoutBtn) this.logoutBtn.classList.remove('hidden');
 
         // Update judge badge (visible for Judges and Admin)
         this.updateJudgeBadge(role);
@@ -640,7 +639,7 @@ class PageantJudgingSystem {
         if (this.resultsSection) this.resultsSection.style.display = 'none';
 
         // Hide logout button until a new role is chosen
-        if (this.logoutBtn) this.logoutBtn.style.display = 'none';
+        if (this.logoutBtn) this.logoutBtn.classList.add('hidden');
 
         // restore focus to first role button for easy selection
         setTimeout(() => {

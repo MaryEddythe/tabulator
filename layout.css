@@ -1,5 +1,54 @@
 /* layout.css - ONLY for TOP-BOTTOM panel layout */
 
+/* Header positioning so we can place logout button on the left and keep actions on the right */
+header {
+  position: relative;
+  padding: 20px 56px; /* leave space for left logout and right actions */
+}
+
+/* .hidden utility (toggle used in script.js) */
+.hidden {
+  display: none !important;
+}
+
+/* Basic visible styling for logout button */
+.logout-btn {
+  display: inline-block;
+  padding: 8px 12px;
+  background: var(--accent, #1f2937);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  z-index: 30;
+}
+
+/* Keep header-actions in normal flow (not positioned). We'll position the judge badge separately. */
+.header-actions {
+  position: static;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* Ensure judge badge stays on the right of the header */
+#judgeBadge {
+  position: absolute;
+  right: 16px;
+  top: 16px;
+  z-index: 20;
+}
+
+/* Place logout button on the left side of the header */
+#logoutBtn {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  z-index: 30;
+}
+
 /* TOP PANEL: Candidates Grid */
 .candidates-panel {
   grid-column: 1;
