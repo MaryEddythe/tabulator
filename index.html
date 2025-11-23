@@ -1,19 +1,38 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Binibining Minero Pageant Judging System</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-    <div class="container">
+    <!-- Role Selection Modal -->
+    <div id="roleSelectionModal" role="dialog" aria-modal="true" aria-labelledby="roleSelectionTitle">
+        <div id="roleSelectionContent">
+            <h2 id="roleSelectionTitle">Welcome</h2>
+            <p>Please select your role to continue:</p>
+            <button class="role-btn" data-role="Judge 1">🧑‍⚖️ Judge 1</button>
+            <button class="role-btn" data-role="Judge 2">🧑‍⚖️ Judge 2</button>
+            <button class="role-btn" data-role="Judge 3">🧑‍⚖️ Judge 3</button>
+            <button class="role-btn" data-role="Admin">👨‍💼 Admin Dashboard</button>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div class="container" id="mainContent" style="display:none;">
         <header>
             <h1>👑 Binibining Minero Pageant</h1>
             <p>Official Judging System</p>
+
+            <!-- Judge badge (shows current judge/admin). Controlled by script -->
+            <div id="judgeBadge" class="judge-badge hidden" aria-hidden="true"></div>
         </header>
 
-        <nav class="category-nav">
+        <nav class="category-nav" aria-label="Category navigation">
             <button class="nav-btn active" data-category="talent">Best in Talent</button>
             <button class="nav-btn" data-category="sports">Best in Sports Wear</button>
             <button class="nav-btn" data-category="gown">Best in Gown</button>
@@ -23,8 +42,10 @@
         </nav>
 
         <main>
+            <!-- Scoring Section for Judges -->
             <div class="scoring-section">
                 <form id="scoreForm" class="score-form">
+                    <!-- Category Header -->
                     <div class="form-header">
                         <h2 id="categoryTitle">Best in Talent</h2>
                         <div id="categoryCriteria" class="criteria-list">
@@ -32,46 +53,74 @@
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="judgeName">Judge Name:</label>
-                        <select id="judgeName" name="judgeName" required>
-                            <option value="">Select Judge</option>
-                            <option value="Judge 1">Judge 1</option>
-                            <option value="Judge 2">Judge 2</option>
-                            <option value="Judge 3">Judge 3</option>
-                            <option value="Judge 4">Judge 4</option>
-                            <option value="Judge 5">Judge 5</option>
-                        </select>
-                    </div>
+                    <!-- Main Form Content -->
+                    <div class="form-content">
+                        <!-- Left Column: Judge Info & Candidate Selection -->
+                        <div class="form-column form-column-left">
+                            <div class="form-group">
+                                <label for="judgeName">Judge Name:</label>
+                                <select id="judgeName" name="judgeName" required aria-label="Select judge">
+                                    <option value="">Select Judge</option>
+                                    <option value="Judge 1">Judge 1</option>
+                                    <option value="Judge 2">Judge 2</option>
+                                    <option value="Judge 3">Judge 3</option>
+                                    <option value="Judge 4">Judge 4</option>
+                                    <option value="Judge 5">Judge 5</option>
+                                </select>
+                            </div>
 
-                    <div class="form-group">
-                        <label for="candidateNumber">Candidate Number:</label>
-                        <select id="candidateNumber" name="candidateNumber" required>
-                            <option value="">Select Candidate</option>
-                            <!-- Options 1-9 will be populated -->
-                        </select>
-                    </div>
+                            <div class="form-group">
+                                <label>Select Candidate:</label>
+                                <div id="candidatesGrid" class="candidates-grid">
+                                    <!-- Candidates will be populated here -->
+                                </div>
+                                <input type="hidden" id="candidateNumber" name="candidateNumber" required />
+                            </div>
+                        </div>
 
-                    <div id="scoreInputs" class="score-inputs">
-                        <!-- Dynamic score inputs based on category -->
-                    </div>
+                        <!-- Right Column: Candidate Showcase & Scoring -->
+                        <div class="form-column form-column-right">
+                            <!-- Candidate Showcase -->
+                            <div id="candidateShowcase" class="candidate-showcase hidden">
+                                <div class="showcase-placeholder">
+                                    <p>Select a candidate to begin scoring</p>
+                                </div>
+                            </div>
 
-                    <div class="form-group">
-                        <label for="totalScore">Total Score:</label>
-                        <input type="number" id="totalScore" name="totalScore" readonly>
-                    </div>
+                            <!-- Score Inputs -->
+                            <div id="scoreInputs" class="score-inputs">
+                                <!-- Dynamic score inputs based on category -->
+                            </div>
 
-                    <button type="submit" class="submit-btn">Submit Score</button>
+                            <!-- Score Summary -->
+                            <div class="score-summary">
+                                <div class="score-summary-item">
+                                    <label for="totalScore">Total Score:</label>
+                                    <div class="total-score-display">
+                                        <input type="number" id="totalScore" name="totalScore" readonly aria-label="Total score" />
+                                        <span class="score-unit">/ 100</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Submit Button -->
+                            <button type="submit" class="submit-btn" aria-live="polite">
+                                <span class="btn-text">Submit Score</span>
+                                <span class="spinner hidden" aria-hidden="true"></span>
+                            </button>
+                        </div>
+                    </div>
                 </form>
 
                 <div id="message" class="message hidden"></div>
             </div>
 
+            <!-- Results Section for Admin -->
             <div class="results-section">
                 <div class="results-header">
                     <h2>Live Results</h2>
                     <div class="results-controls">
-                        <select id="resultsCategory">
+                        <select id="resultsCategory" aria-label="Select results category">
                             <option value="overall">Overall Ranking</option>
                             <option value="talent">Best in Talent</option>
                             <option value="sports">Best in Sports Wear</option>
@@ -90,6 +139,7 @@
         </main>
     </div>
 
+    <script src="candidates.js"></script>
     <script src="categories.js"></script>
     <script src="script.js"></script>
 </body>

@@ -1,0 +1,7 @@
+{
+  "command": "start dev",
+  "serverUrl": "http://127.0.0.1:8000/inventory",
+  "authenticateProxy": false,
+  "autoDetectDevServer": true,
+  "commitMode": "commits"
+}

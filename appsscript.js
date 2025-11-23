@@ -3,18 +3,26 @@ function doPost(e) {
         const data = JSON.parse(e.postData.contents);
         return submitScore(data);
     } catch (error) {
-        return createResponse('error', error.message);
+        return createResponse('error', 'POST Error: ' + error.message);
     }
 }
 
 function doGet(e) {
-    const action = e.parameter.action;
-    const category = e.parameter.category || 'overall';
-
-    if (action === 'getResults') {
-        return getResults(category);
-    } else {
-        return createResponse('error', 'Invalid action');
+    try {
+        const action = e.parameter.action;
+        
+        if (action === 'getResults') {
+            const category = e.parameter.category || 'overall';
+            return getResults(category);
+        } else if (action === 'submitScore') {
+            // Handle GET-based score submission (fallback for CORS)
+            const data = JSON.parse(e.parameter.data);
+            return submitScore(data);
+        } else {
+            return createResponse('error', 'Invalid action');
+        }
+    } catch (error) {
+        return createResponse('error', 'GET Error: ' + error.message);
     }
 }
 
@@ -42,7 +50,7 @@ function submitScore(data) {
 
         return createResponse('success', 'Score submitted successfully');
     } catch (error) {
-        return createResponse('error', error.message);
+        return createResponse('error', 'Submit Error: ' + error.message);
     }
 }
 
@@ -71,7 +79,7 @@ function getResults(category) {
             }))
             .setMimeType(ContentService.MimeType.JSON);
     } catch (error) {
-        return createResponse('error', error.message);
+        return createResponse('error', 'Results Error: ' + error.message);
     }
 }
 
@@ -241,4 +249,28 @@ function setupAllSheets() {
     categories.forEach(category => {
         getSheet(category);
     });
+}
+
+// Test function to verify script works
+function testGetResults() {
+    const result = getResults('overall');
+    Logger.log(result.getContent());
+}
+
+// Test function to verify submit works
+function testSubmitScore() {
+    const testData = {
+        judgeName: "Test Judge",
+        candidateNumber: "1",
+        category: "talent",
+        totalScore: 85.5,
+        scores: {
+            "Stage Present": 25,
+            "Mastery": 27,
+            "Execution of Talent": 28,
+            "Audience Impact": 5.5
+        }
+    };
+    const result = submitScore(testData);
+    Logger.log(result.getContent());
 }
