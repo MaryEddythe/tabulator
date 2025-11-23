@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="layout.css" />
 </head>
 <body>
     <!-- Role Selection Modal -->
@@ -15,10 +16,10 @@
         <div id="roleSelectionContent">
             <h2 id="roleSelectionTitle">Welcome</h2>
             <p>Please select your role to continue:</p>
-            <button class="role-btn" data-role="Judge 1">🧑‍⚖️ Judge 1</button>
-            <button class="role-btn" data-role="Judge 2">🧑‍⚖️ Judge 2</button>
-            <button class="role-btn" data-role="Judge 3">🧑‍⚖️ Judge 3</button>
-            <button class="role-btn" data-role="Admin">👨‍💼 Admin Dashboard</button>
+            <button class="role-btn" data-role="Judge 1">Judge 1</button>
+            <button class="role-btn" data-role="Judge 2">Judge 2</button>
+            <button class="role-btn" data-role="Judge 3">Judge 3</button>
+            <button class="role-btn" data-role="Admin">Admin Dashboard</button>
         </div>
     </div>
 
@@ -28,8 +29,11 @@
             <h1>👑 Binibining Minero Pageant</h1>
             <p>Official Judging System</p>
 
-            <!-- Judge badge (shows current judge/admin). Controlled by script -->
-            <div id="judgeBadge" class="judge-badge hidden" aria-hidden="true"></div>
+            <!-- Header action area: logout button and judge badge (added to stabilize layout) -->
+            <div class="header-actions">
+                <button id="logoutBtn" class="logout-btn hidden" type="button">Logout / Change Role</button>
+                <div id="judgeBadge" class="judge-badge hidden" aria-hidden="true"></div>
+            </div>
         </header>
 
         <nav class="category-nav" aria-label="Category navigation">
@@ -49,67 +53,54 @@
                     <div class="form-header">
                         <h2 id="categoryTitle">Best in Talent</h2>
                         <div id="categoryCriteria" class="criteria-list">
-                            <!-- Criteria will be dynamically loaded -->
                         </div>
                     </div>
 
                     <!-- Main Form Content -->
                     <div class="form-content">
-                        <!-- Left Column: Judge Info & Candidate Selection -->
-                        <div class="form-column form-column-left">
-                            <div class="form-group">
-                                <label for="judgeName">Judge Name:</label>
-                                <select id="judgeName" name="judgeName" required aria-label="Select judge">
-                                    <option value="">Select Judge</option>
-                                    <option value="Judge 1">Judge 1</option>
-                                    <option value="Judge 2">Judge 2</option>
-                                    <option value="Judge 3">Judge 3</option>
-                                    <option value="Judge 4">Judge 4</option>
-                                    <option value="Judge 5">Judge 5</option>
-                                </select>
-                            </div>
-
-                            <div class="form-group">
-                                <label>Select Candidate:</label>
-                                <div id="candidatesGrid" class="candidates-grid">
-                                    <!-- Candidates will be populated here -->
-                                </div>
-                                <input type="hidden" id="candidateNumber" name="candidateNumber" required />
-                            </div>
-                        </div>
-
-                        <!-- Right Column: Candidate Showcase & Scoring -->
-                        <div class="form-column form-column-right">
-                            <!-- Candidate Showcase -->
+                        <div class="candidates-panel">
                             <div id="candidateShowcase" class="candidate-showcase hidden">
                                 <div class="showcase-placeholder">
                                     <p>Select a candidate to begin scoring</p>
                                 </div>
                             </div>
 
-                            <!-- Score Inputs -->
-                            <div id="scoreInputs" class="score-inputs">
-                                <!-- Dynamic score inputs based on category -->
+                            <div class="form-group">
+                                <label>Select Candidate:</label>
+                                <div id="candidatesGrid" class="candidates-grid">
+                                </div>
+                                <input type="hidden" id="candidateNumber" name="candidateNumber" required />
+                                <input type="hidden" id="hiddenJudgeName" name="judgeName" />
                             </div>
+                        </div>
 
-                            <!-- Score Summary -->
-                            <div class="score-summary">
-                                <div class="score-summary-item">
-                                    <label for="totalScore">Total Score:</label>
-                                    <div class="total-score-display">
-                                        <input type="number" id="totalScore" name="totalScore" readonly aria-label="Total score" />
-                                        <span class="score-unit">/ 100</span>
-                                    </div>
+                        <div class="scoring-panel">
+                             <div id="scoreInputs" class="score-inputs">
+                             </div>
+
+                        </div>
+                    </div> 
+
+                    <!-- Full-width summary + submit row -->
+                    <div class="summary-submit-row">
+                        <div class="score-summary">
+                            <div class="score-summary-item">
+                                <label for="totalScore">Total Score:</label>
+                                <div class="total-score-display">
+                                    <input type="number" id="totalScore" name="totalScore" readonly aria-label="Total score" />
+                                    <span id="scoreUnit" class="score-unit">/ 100</span>
                                 </div>
                             </div>
+                        </div>
 
-                            <!-- Submit Button -->
+                        <div class="submit-container">
                             <button type="submit" class="submit-btn" aria-live="polite">
                                 <span class="btn-text">Submit Score</span>
                                 <span class="spinner hidden" aria-hidden="true"></span>
                             </button>
                         </div>
                     </div>
+
                 </form>
 
                 <div id="message" class="message hidden"></div>
@@ -139,8 +130,27 @@
         </main>
     </div>
 
+    <!-- Lightbox / Candidate preview (for enlarged image) -->
+    <div id="lightbox" class="lightbox hidden" role="dialog" aria-modal="true" aria-label="Candidate preview">
+        <div class="lightbox-backdrop" data-close></div>
+        <div class="lightbox-content" role="document">
+            <button id="lightboxClose" class="lightbox-close" aria-label="Close preview">✕</button>
+            <div class="lightbox-body">
+                <img id="lightboxImage" class="lightbox-image" src="" alt="" />
+                <div class="lightbox-info">
+                    <div id="lightboxName" class="lightbox-name"></div>
+                    <div id="lightboxNumber" class="lightbox-number"></div>
+                    <div class="lightbox-actions">
+                        <button id="lightboxScoreBtn" class="submit-btn small">Score this candidate</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="candidates.js"></script>
     <script src="categories.js"></script>
+    <script src="functions.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

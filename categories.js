@@ -1,3 +1,4 @@
+// categories.js
 // Categories and Criteria Configuration
 const CATEGORIES = {
     talent: {

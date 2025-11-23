@@ -1,4 +1,3 @@
-// Replace this with your Google Apps Script Web App URL
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzs0wlZ_in7uWwX-QSfFwCE_PJIaxgs48SlyyakERn4A6uVaTyltoRpfJxMoq9A6HVcTA/exec';
 
 class PageantJudgingSystem {
@@ -18,7 +17,6 @@ class PageantJudgingSystem {
 
         this.selectedRole = null;
 
-        // Ensure a hidden input exists so a disabled select still provides judgeName in FormData
         this.hiddenJudgeInput = document.getElementById('hiddenJudgeName');
         if (!this.hiddenJudgeInput) {
             this.hiddenJudgeInput = document.createElement('input');
@@ -67,7 +65,7 @@ class PageantJudgingSystem {
         this.init();
     }
 
-init() {
+    init() {
         // Check if a judge role is stored in localStorage
         const storedJudge = localStorage.getItem('selectedJudge');
 
@@ -105,7 +103,7 @@ init() {
         document.body.style.overflow = 'hidden';
     }
 
-selectRole(role) {
+    selectRole(role) {
         this.selectedRole = role;
 
         // Store judge role to localStorage if Judge
@@ -165,17 +163,20 @@ selectRole(role) {
     }
 
     restrictJudgeDropdown(selectedJudge) {
-        // Remove all options except the selected judge
-        for (let i = this.judgeNameSelect.options.length - 1; i >= 0; i--) {
-            const option = this.judgeNameSelect.options[i];
-            if (option.value !== selectedJudge) {
-                this.judgeNameSelect.remove(i);
-            }
-        }
-        // Set and disable the dropdown to the selected judge
-        this.judgeNameSelect.value = selectedJudge;
-        this.judgeNameSelect.disabled = true;
-    }
+        // If there is no visible judge select in the DOM, nothing to restrict.
+        if (!this.judgeNameSelect) return;
+
+         // Remove all options except the selected judge
+         for (let i = this.judgeNameSelect.options.length - 1; i >= 0; i--) {
+             const option = this.judgeNameSelect.options[i];
+             if (option.value !== selectedJudge) {
+                 this.judgeNameSelect.remove(i);
+             }
+         }
+         // Set and disable the dropdown to the selected judge
+         this.judgeNameSelect.value = selectedJudge;
+         this.judgeNameSelect.disabled = true;
+     }
 
     populateCandidateOptions() {
         const grid = document.getElementById('candidatesGrid');
@@ -194,48 +195,99 @@ selectRole(role) {
                 <div class="candidate-card-name">${candidate.name}</div>
             `;
 
+            // clicking the card selects candidate (default behavior)
             card.addEventListener('click', () => this.selectCandidate(candidate.number, card));
+
+            // clicking the image should show inline enlarged preview by default.
+            const imgEl = card.querySelector('.candidate-card-image');
+            if (imgEl) {
+                // visual affordance and keyboard access
+                imgEl.style.cursor = 'zoom-in';
+                imgEl.tabIndex = 0;
+
+                imgEl.addEventListener('click', (ev) => {
+                    ev.stopPropagation(); // avoid double-triggering card click handlers
+                    // Show inline preview (selectCandidate already updates the inline preview)
+                    this.selectCandidate(candidate.number, card);
+
+                    // If user holds Ctrl (Windows) or Meta (Mac) while clicking, open full lightbox
+                    if (ev.ctrlKey || ev.metaKey) {
+                        this.openLightbox(candidate);
+                    }
+                });
+
+                // Keyboard: Enter or Space on image opens inline preview; Shift+Enter opens lightbox
+                imgEl.addEventListener('keydown', (ev) => {
+                    if (ev.key === 'Enter' || ev.key === ' ') {
+                        ev.preventDefault();
+                        this.selectCandidate(candidate.number, card);
+                        if (ev.shiftKey) {
+                            this.openLightbox(candidate);
+                        } else {
+                            // focus first score input for quick scoring
+                            const firstInput = document.querySelector('.criteria-score-input');
+                            if (firstInput) firstInput.focus();
+                        }
+                    }
+                });
+            }
+
             grid.appendChild(card);
         });
     }
 
-    selectCandidate(candidateNumber, cardElement) {
-        // Update hidden input
-        document.getElementById('candidateNumber').value = candidateNumber;
+    // Open lightbox / preview for candidate (candidate is object from CANDIDATES_DATA)
+    openLightbox(candidate) {
+        const lb = document.getElementById('lightbox');
+        const img = document.getElementById('lightboxImage');
+        const name = document.getElementById('lightboxName');
+        const number = document.getElementById('lightboxNumber');
+        const scoreBtn = document.getElementById('lightboxScoreBtn');
 
-        // Remove selected class from all cards
-        document.querySelectorAll('.candidate-card').forEach(card => {
-            card.classList.remove('selected');
-        });
+        if (!lb || !img) return;
 
-        // Add selected class to clicked card
-        cardElement.classList.add('selected');
+        img.src = candidate.image;
+        img.alt = `Candidate ${candidate.number}: ${candidate.name}`;
+        name.textContent = candidate.name;
+        number.textContent = `Candidate #${candidate.number}`;
 
-        // Update candidate showcase
-        this.updateCandidateShowcase(candidateNumber);
+        // Score button should focus the scoring panel and close the lightbox
+        scoreBtn.onclick = (e) => {
+            e.preventDefault();
+            // ensure candidate is selected (should be already)
+            document.getElementById('candidateNumber').value = candidate.number;
+            // close preview and focus first score input
+            this.closeLightbox();
+            const firstInput = document.querySelector('.criteria-score-input');
+            if (firstInput) firstInput.focus();
+        };
 
-        // Recalculate total (in case there's any dependency)
-        this.calculateTotal();
+        // show lightbox and set container state to expand left panel
+        lb.classList.remove('hidden');
+        document.querySelector('.container')?.classList.add('left-focused');
+
+        // attach close handlers
+        document.getElementById('lightboxClose').onclick = () => this.closeLightbox();
+        // clicking backdrop closes
+        lb.querySelector('[data-close]')?.addEventListener('click', () => this.closeLightbox());
+
+        // escape key closes
+        this._lightboxEscHandler = (ev) => {
+            if (ev.key === 'Escape') this.closeLightbox();
+        };
+        document.addEventListener('keydown', this._lightboxEscHandler, { once: false });
     }
 
-    updateCandidateShowcase(candidateNumber) {
-        const showcase = document.getElementById('candidateShowcase');
-        const candidate = CANDIDATES_DATA.find(c => c.number == candidateNumber);
+    closeLightbox() {
+        const lb = document.getElementById('lightbox');
+        if (!lb) return;
+        lb.classList.add('hidden');
+        document.querySelector('.container')?.classList.remove('left-focused');
 
-        if (candidate) {
-            showcase.innerHTML = `
-                <div class="showcase-content">
-                    <img src="${candidate.image}" alt="Candidate ${candidate.number}: ${candidate.name}" class="showcase-image" />
-                    <div class="showcase-info">
-                        <div class="showcase-number">Candidate #${candidate.number}</div>
-                        <div class="showcase-name">${candidate.name}</div>
-                        <div class="showcase-status">Ready to score</div>
-                    </div>
-                </div>
-            `;
-            showcase.classList.remove('hidden');
-        } else {
-            showcase.classList.add('hidden');
+        // cleanup backdrop and escape handler
+        if (this._lightboxEscHandler) {
+            document.removeEventListener('keydown', this._lightboxEscHandler);
+            this._lightboxEscHandler = null;
         }
     }
 
@@ -297,103 +349,69 @@ selectRole(role) {
         criteria.forEach(criterion => {
             const div = document.createElement('div');
             div.className = 'criteria-item';
-            div.innerHTML = `
-                <span>${criterion.name}</span>
-                <span>${criterion.percentage}%</span>
-            `;
+            div.innerHTML = `<span>${criterion.name}</span><span>${criterion.percentage}% (${criterion.maxScore} pts)</span>`;
             criteriaContainer.appendChild(div);
         });
     }
 
     createScoreInputs(criteria) {
-        const container = document.getElementById('scoreInputs');
-        container.innerHTML = '';
+        const inputsContainer = document.getElementById('scoreInputs');
+        inputsContainer.innerHTML = '';
         
-        criteria.forEach((criterion, index) => {
+        criteria.forEach(criterion => {
             const div = document.createElement('div');
             div.className = 'criteria-score';
             div.innerHTML = `
-                <div class="criteria-info">
-                    <div class="criteria-name">${criterion.name}</div>
-                    <div class="criteria-percentage">${criterion.percentage}% (Max: ${criterion.maxScore})</div>
+                <label for="${criterion.name.replace(/\s/g, '')}" class="criteria-label">${criterion.name}</label>
+                <div class="score-input-wrapper">
+                    <input type="number" id="${criterion.name.replace(/\s/g, '')}" name="${criterion.name}" class="criteria-score-input" data-name="${criterion.name}" 
+                    min="0" max="${criterion.maxScore}" step="0.1" required aria-label="${criterion.name} score" />
+                    <span class="score-max">/ ${criterion.maxScore}</span>
                 </div>
-                <input type="number" 
-                       class="score-input criteria-score-input" 
-                       data-max="${criterion.maxScore}"
-                       data-name="${criterion.name}"
-                       min="0" 
-                       max="${criterion.maxScore}" 
-                       step="0.1" 
-                       placeholder="0.0"
-                       required>
             `;
-            container.appendChild(div);
+            inputsContainer.appendChild(div);
         });
     }
 
     setupAutoCalculate() {
-        document.addEventListener('input', (e) => {
+        const inputsContainer = document.getElementById('scoreInputs');
+        inputsContainer.addEventListener('input', (e) => {
             if (e.target.classList.contains('criteria-score-input')) {
-                this.validateScoreInput(e.target);
                 this.calculateTotal();
             }
         });
     }
 
-    validateScoreInput(input) {
-        const maxScore = parseFloat(input.dataset.max);
-        const value = parseFloat(input.value) || 0;
-        
-        if (value > maxScore) {
-            input.value = maxScore;
-        } else if (value < 0) {
-            input.value = 0;
-        }
-    }
-
     calculateTotal() {
         const inputs = document.querySelectorAll('.criteria-score-input');
         let total = 0;
-        
         inputs.forEach(input => {
             total += parseFloat(input.value) || 0;
         });
-        
         document.getElementById('totalScore').value = total.toFixed(1);
     }
 
-    // Show an app-level message (error, success, info)
-	showMessage(text, type = 'info') {
-		if (!this.message) return;
-		this.message.textContent = text;
-		this.message.className = `message ${type}`;
-
-		// Auto-hide success and info messages after 5 seconds
-		if (type === 'success' || type === 'info') {
-			clearTimeout(this._messageTimeout);
-			this._messageTimeout = setTimeout(() => {
-				this.message.className = 'message hidden';
-			}, 5000);
-		}
-	}
-
-    // Update the judge badge UI
     updateJudgeBadge(role) {
-        if (!this.judgeBadge) return;
-        if (!role) {
+        if (role) {
+            this.judgeBadge.textContent = role;
+            this.judgeBadge.classList.remove('hidden');
+        } else {
             this.judgeBadge.classList.add('hidden');
-            this.judgeBadge.setAttribute('aria-hidden', 'true');
-            return;
         }
-        this.judgeBadge.textContent = role;
-        this.judgeBadge.classList.remove('hidden');
-        this.judgeBadge.setAttribute('aria-hidden', 'false');
     }
 
-    // Toggle submit loading state (spinner + disable form)
+    showMessage(msg, type) {
+        this.message.textContent = msg;
+        this.message.className = `message ${type}`;
+        this.message.classList.remove('hidden');
+        setTimeout(() => {
+            this.message.classList.add('hidden');
+        }, 5000);
+    }
+
     toggleSubmitLoading(isLoading) {
         if (isLoading) {
-            if (this.submitBtn) this.submitBtn.setAttribute('disabled', 'disabled');
+            this.submitBtn.setAttribute('disabled', 'disabled');
             if (this.submitSpinner) this.submitSpinner.classList.remove('hidden');
             if (this.submitBtnText) this.submitBtnText.textContent = 'Submitting...';
         } else {
@@ -408,10 +426,8 @@ selectRole(role) {
 
         const formData = new FormData(this.form);
 
-        // Prefer selectedRole (set when role was chosen), then hidden/form value, then visible select value
         const resolvedJudgeName = this.selectedRole || formData.get('judgeName') || (this.judgeNameSelect ? this.judgeNameSelect.value : '');
 
-        // Get candidate number from hidden input
         const candidateNumber = document.getElementById('candidateNumber').value;
 
         const scores = this.getScores();
@@ -424,28 +440,28 @@ selectRole(role) {
             totalScore: parseFloat(document.getElementById('totalScore').value)
         };
 
-        // Validate all scores are provided
         const validationError = this.validateSubmission(data);
         if (validationError) {
             this.showMessage(validationError, 'error');
             return;
         }
 
-        // Confirm submission to avoid accidental sends
         const confirmed = confirm(`Submit scores for Candidate ${candidateNumber} (${data.totalScore.toFixed(1)})?`);
         if (!confirmed) return;
 
         try {
             this.toggleSubmitLoading(true);
             this.showMessage('Submitting score...', 'info');
-            await this.submitScore(data);
+
+            // CALL external function that handles network submission
+            await window.AppFunctions.submitScore(data);
+
             this.showMessage('Score submitted successfully! ✓', 'success');
             this.form.reset();
             this.calculateTotal();
-            // Refresh results after successful submission
             setTimeout(() => this.loadResults(), 1000);
         } catch (error) {
-            this.showMessage('Error submitting score: ' + error.message, 'error');
+            this.showMessage('Error submitting score: ' + (error.message || error), 'error');
             console.error('Submission error:', error);
         } finally {
             this.toggleSubmitLoading(false);
@@ -478,92 +494,24 @@ selectRole(role) {
         return null;
     }
 
-    async submitScore(data) {
-        try {
-            // Use GET with query params to avoid CORS preflight issues
-            const params = new URLSearchParams({
-                action: 'submitScore',
-                data: JSON.stringify(data)
-            });
-            
-            const url = `${SCRIPT_URL}?${params.toString()}`;
-            console.log('Submitting to:', url);
-            
-            const response = await fetch(url, {
-                method: 'GET',
-                redirect: 'follow'
-            });
-
-            // Get response text first to handle non-JSON responses
-            const responseText = await response.text();
-            console.log('Response:', responseText);
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            // Try to parse as JSON
-            let result;
-            try {
-                result = JSON.parse(responseText);
-            } catch (parseError) {
-                console.error('Parse error:', parseError);
-                console.error('Response text:', responseText);
-                throw new Error('Invalid response from server. Please check your script URL.');
-            }
-            
-            if (result.status !== 'success') {
-                throw new Error(result.message || 'Unknown error occurred');
-            }
-
-            return result;
-        } catch (error) {
-            console.error('Submit error:', error);
-            throw error;
-        }
-    }
-
     async loadResults() {
-        const category = this.resultsCategory.value;
+        const category = this.resultsCategory.value || this.currentCategory || 'overall';
         this.results.innerHTML = '<div class="loading">Loading results...</div>';
-        
+
         try {
-            const url = `${SCRIPT_URL}?action=getResults&category=${category}`;
-            console.log('Loading results from:', url);
-            
-            const response = await fetch(url, {
-                method: 'GET',
-                redirect: 'follow'
-            });
-            
-            // Get response text first
-            const responseText = await response.text();
-            console.log('Results response:', responseText);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            // Try to parse as JSON
-            let data;
-            try {
-                data = JSON.parse(responseText);
-            } catch (parseError) {
-                console.error('Parse error:', parseError);
-                console.error('Response text:', responseText);
-                throw new Error('Invalid response from server. Please check your script URL and deployment.');
-            }
-            
-            if (data.status === 'success') {
-                this.displayResults(data.results, category);
+            // fetch results via separated function
+            const response = await window.AppFunctions.fetchResults(category);
+
+            if (response && response.status === 'success') {
+                this.displayResults(response.results, category);
             } else {
-                throw new Error(data.message || 'Unknown error');
+                throw new Error((response && response.message) || 'Unknown error fetching results');
             }
         } catch (error) {
             console.error('Load results error:', error);
             this.results.innerHTML = `
                 <div class="message error">
-                    <strong>Error loading results:</strong> ${error.message}
+                    <strong>Error loading results:</strong> ${error.message || error}
                     <br><small>Check the browser console for more details.</small>
                 </div>
             `;
@@ -697,6 +645,67 @@ selectRole(role) {
         // re-hide any toast/message after logout to avoid stale messages
         if (this.message) this.message.className = 'message hidden';
         this.updateJudgeBadge(null);
+    }
+
+    selectCandidate(candidateNumber, cardElement) {
+        // Update hidden input
+        document.getElementById('candidateNumber').value = candidateNumber;
+
+        // Remove selected class from all cards
+        document.querySelectorAll('.candidate-card').forEach(card => {
+            card.classList.remove('selected');
+        });
+
+        // Add selected class to clicked card
+        cardElement.classList.add('selected');
+
+        // Update candidate showcase (left)
+        this.updateCandidateShowcase(candidateNumber);
+
+        // Recalculate total (in case there's any dependency)
+        this.calculateTotal();
+    }
+
+    // render the big inline preview inside the scoring panel
+    updateSelectedPreview(candidate) {
+        const preview = document.getElementById('selectedPreview');
+        if (!preview) return;
+
+        preview.innerHTML = `
+            <div class="selected-img-wrapper">
+                <img src="${candidate.image}" alt="Candidate ${candidate.number}: ${candidate.name}" class="selected-image" />
+            </div>
+            <div class="selected-info">
+                <div class="selected-name">${candidate.name}</div>
+                <div class="selected-number">Candidate #${candidate.number}</div>
+                <div class="selected-actions" style="margin-top:8px;">
+                    <button type="button" class="submit-btn small" id="previewScoreBtn">Score this candidate</button>
+                    <button type="button" class="logout-btn small" id="previewHideBtn" style="margin-left:8px; background:#6b7280;">Hide</button>
+                </div>
+            </div>
+        `;
+        preview.classList.remove('hidden');
+        preview.classList.add('visible');
+        preview.setAttribute('aria-hidden', 'false');
+
+        // wire preview buttons
+        const previewScoreBtn = document.getElementById('previewScoreBtn');
+        if (previewScoreBtn) {
+            previewScoreBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                // focus first score input
+                const firstInput = document.querySelector('.criteria-score-input');
+                if (firstInput) firstInput.focus();
+            });
+        }
+        const previewHideBtn = document.getElementById('previewHideBtn');
+        if (previewHideBtn) {
+            previewHideBtn.addEventListener('click', () => {
+                preview.classList.add('hidden');
+                preview.classList.remove('visible');
+                preview.setAttribute('aria-hidden', 'true');
+            });
+        }
     }
 }
 
