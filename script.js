@@ -15,9 +15,14 @@ class PageantJudgingSystem {
         this.scoringSection = document.querySelector('.scoring-section');
         this.resultsSection = document.querySelector('.results-section');
 
+        // Optional DOM elements: the category header/criteria were removed from the markup by request.
+        // Cache references and gracefully skip updates when not present.
+        this.categoryTitleElem = document.getElementById('categoryTitle');
+        this.categoryCriteriaElem = document.getElementById('categoryCriteria');
+
         this.selectedRole = null;
 
-        this.hiddenJudgeInput = document.getElementById('hiddenJudgeName');
+            this.hiddenJudgeInput = document.getElementById('hiddenJudgeName');
         if (!this.hiddenJudgeInput) {
             this.hiddenJudgeInput = document.createElement('input');
             this.hiddenJudgeInput.type = 'hidden';
@@ -316,15 +321,16 @@ class PageantJudgingSystem {
     loadCategory(category) {
         const categoryData = CATEGORIES[category];
 
-        // Update title
-        document.getElementById('categoryTitle').textContent = categoryData.title;
+        // Update title if element exists (header may be removed)
+        if (this.categoryTitleElem) {
+            this.categoryTitleElem.textContent = categoryData.title;
+        }
 
         // Update criteria display
         this.displayCriteria(categoryData.criteria);
 
         // Update score inputs
         this.createScoreInputs(categoryData.criteria);
-
         // Reset form
         this.form.reset();
 
@@ -343,14 +349,14 @@ class PageantJudgingSystem {
     }
 
     displayCriteria(criteria) {
-        const criteriaContainer = document.getElementById('categoryCriteria');
-        criteriaContainer.innerHTML = '';
-        
+        // If the criteria container is not present (header removed), skip DOM writes.
+        if (!this.categoryCriteriaElem) return;
+        this.categoryCriteriaElem.innerHTML = '';
         criteria.forEach(criterion => {
             const div = document.createElement('div');
             div.className = 'criteria-item';
             div.innerHTML = `<span>${criterion.name}</span><span>${criterion.percentage}% (${criterion.maxScore} pts)</span>`;
-            criteriaContainer.appendChild(div);
+            this.categoryCriteriaElem.appendChild(div);
         });
     }
 
