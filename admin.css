@@ -348,23 +348,16 @@ input:read-only {
 .candidate-card-image-wrapper {
   position: relative;
   width: 100%;
-  /* center the image inside the wrapper */
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
-/* card image: allow it to be wider but still responsive and centered */
+
 .candidate-card-image {
   width: 100%;
-  max-width: 400px; /* increased width for wider display */
   aspect-ratio: 3 / 4;
   object-fit: cover;
   border-radius: 8px;
   border: 2px solid var(--border-color);
   transition: var(--transition-smooth);
-  display: block;
-  margin: 0 auto;
 }
 
 /* Highlight outer line on selected candidate picture */
@@ -419,13 +412,6 @@ input:read-only {
   font-weight: 600;
   text-align: center;
   color: var(--text-primary);
-}
-
-.candidate-department {
-  font-size: 0.85em;
-  color: var(--text-secondary);
-  font-style: italic;
-  margin-top: 4px;
 }
 
 /* ============= SCORE INPUTS ============= */
@@ -695,8 +681,8 @@ input:read-only {
 }
 
 .candidate-result-image {
-  width: 100px;
-  height: 100px;
+  width: 80px;
+  height: 80px;
   border-radius: 50%;
   object-fit: cover;
   border: 3px solid var(--border-color);
@@ -932,10 +918,6 @@ input:read-only {
     padding: 12px 14px;
     font-size: 0.9em;
   }
-
-  .candidate-card-image {
-    max-width: 220px;
-  }
 }
 
 @media (max-width: 480px) {
@@ -975,3 +957,66 @@ input:read-only {
     font-size: 1.3em;
   }
 }
+
+/* Admin specific styles */
+.admin .candidate-card {
+  /* Example: different background for admin view */
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.admin .candidate-card:hover {
+  /* Example: different hover effect for admin view */
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.admin .candidate-info {
+  /* Example: align items to the start in admin view */
+  align-items: flex-start;
+}
+
+.admin .candidate-name {
+  /* Example: larger name text in admin view */
+  font-size: 1.1em;
+}
+
+.admin .candidate-department {
+  font-size: 0.9em;
+  color: var(--muted);
+  font-style: italic;
+  margin-top: 6px;
+}
+
+/* center thumbnails in manage list */
+.manage-item .thumb {
+  width: 88px;
+  height: 88px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #f6f7fb;
+  flex: 0 0 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.manage-item .thumb img { width: 100%; height: 100%; object-fit: cover; display:block; }
+
+/* ensure admin result thumbnails match main UI sizing */
+.result-item .thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* make admin result avatars match the larger size */
+.result-item .thumb {
+  width: 100px;
+  height: 100px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #fff;
+}
+
+/* candidate-department style kept as-is */

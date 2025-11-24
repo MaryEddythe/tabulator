@@ -63,5 +63,5 @@ const CATEGORIES = {
     }
 };
 
-// Contestant numbers (1-9)
-const CONTESTANTS = Array.from({ length: 9 }, (_, i) => (i + 1).toString());
+// Contestant numbers (1-5)
+const CONTESTANTS = Array.from({ length: 5 }, (_, i) => (i + 1).toString());

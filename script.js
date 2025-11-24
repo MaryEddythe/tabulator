@@ -72,6 +72,17 @@ class PageantJudgingSystem {
         this.init();
     }
 
+    logout() {
+        // Clear stored data associated with current session/role
+        localStorage.removeItem('selectedJudge');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('userToken');
+
+        // Optionally reset UI state or redirect to role selection page
+        // For simplicity, reload page to show role selection modal again
+        window.location.reload();
+    }
+
     init() {
         // Check if a judge role is stored in localStorage
         const storedJudge = localStorage.getItem('selectedJudge');
@@ -205,6 +216,7 @@ class PageantJudgingSystem {
                     <div class="candidate-card-selected-checkmark">✓</div>
                 </div>
                 <div class="candidate-card-name">${candidate.name}</div>
+                <div class="candidate-department">${candidate.department || ''}</div>
             `;
 
             // clicking the card selects candidate (updated to toggle selected class)
@@ -714,23 +726,10 @@ class PageantJudgingSystem {
             const candidateData = CANDIDATES_DATA.find(c => c.number == candidate.candidate);
             const candidateImage = candidateData ? candidateData.image : '';
             const candidateName = candidateData ? candidateData.name : `Candidate ${candidate.candidate}`;
-
-            // compute display total: if viewing overall, use composite; otherwise try breakdown or provided totalScore
-            let displayTotal = 0;
-            if (category === 'overall') {
-                displayTotal = this.computeOverallComposite(candidate);
-            } else {
-                const criteria = CATEGORIES[category]?.criteria || [];
-                const hasBreakdown = candidate.scores && Object.keys(candidate.scores).length > 0 && criteria.length > 0;
-                const computedTotal = hasBreakdown ? this.computeTotalForCategory(candidate, category) : null;
-                displayTotal = (computedTotal !== null) ? computedTotal : (candidate.totalScore || 0);
-            }
-
-            // optional placement title for top 4 when viewing overall
-            const placementTitle = (category === 'overall' && index < 4) ? `<div class="placement-title">${placementTitles[index]}</div>` : '';
-
+            const candidateDept = candidateData ? candidateData.department || '' : '';
+ 
             html += `
-                <div class="ranking-item ${rankClass}">
+                 <div class="ranking-item ${rankClass}">
                     <div class="rank-badge">
                         <span class="rank-medal">${medal}</span>
                         <span class="rank-number">#${index + 1}</span>
@@ -739,15 +738,15 @@ class PageantJudgingSystem {
                     <div class="candidate-info">
                         <div class="candidate-number">Candidate ${candidate.candidate}</div>
                         <div class="candidate-name">${candidateName}</div>
-                        ${placementTitle}
+                        <div class="candidate-department">${candidateDept}</div>
                         <div class="candidate-scores">
                             ${this.getScoreBreakdown(candidate, category)}
                         </div>
                         <div class="num-judges">Based on ${candidate.numberOfScores} judge${candidate.numberOfScores !== 1 ? 's' : ''}</div>
                     </div>
-                    <div class="total-score">${parseFloat(displayTotal).toFixed(2)}</div>
-                </div>
-            `;
+                    <div class="total-score">${candidate.totalScore.toFixed(2)}</div>
+                 </div>
+             `;
         });
 
         this.results.innerHTML = html;
