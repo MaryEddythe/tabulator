@@ -1,9 +1,7 @@
-/* layout.css - ONLY for TOP-BOTTOM panel layout */
 
-/* Header positioning so we can place logout button on the left and keep actions on the right */
 header {
   position: relative;
-  padding: 20px 56px; /* leave space for left logout and right actions */
+  padding: 20px 56px; 
 }
 
 /* .hidden utility (toggle used in script.js) */

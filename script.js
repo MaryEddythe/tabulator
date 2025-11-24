@@ -15,6 +15,9 @@ class PageantJudgingSystem {
         this.scoringSection = document.querySelector('.scoring-section');
         this.resultsSection = document.querySelector('.results-section');
 
+        // add: reference to category navigation so we can hide it for Admin
+        this.categoryNav = document.querySelector('.category-nav');
+        
         // Optional DOM elements: the category header/criteria were removed from the markup by request.
         // Cache references and gracefully skip updates when not present.
         this.categoryTitleElem = document.getElementById('categoryTitle');
@@ -139,11 +142,16 @@ class PageantJudgingSystem {
             // Admin: hide scoring, show live results
             this.scoringSection.style.display = 'none';
             this.resultsSection.style.display = 'block';
+            // hide category navigation for admin (only show live results)
+            if (this.categoryNav) this.categoryNav.style.display = 'none';
         } else if (role.startsWith('Judge')) {
             // Judge: show scoring, hide live results
             this.scoringSection.style.display = 'block';
             this.resultsSection.style.display = 'none';
 
+            // ensure category nav is visible for judges
+            if (this.categoryNav) this.categoryNav.style.display = '';
+            
             // Restrict judge dropdown to selected judge
             this.restrictJudgeDropdown(role);
         }
@@ -199,8 +207,16 @@ class PageantJudgingSystem {
                 <div class="candidate-card-name">${candidate.name}</div>
             `;
 
-            // clicking the card selects candidate (default behavior)
-            card.addEventListener('click', () => this.selectCandidate(candidate.number, card));
+            // clicking the card selects candidate (updated to toggle selected class)
+            card.addEventListener('click', () => {
+                // Remove selected class from all candidate cards
+                document.querySelectorAll('.candidate-card.selected').forEach(c => c.classList.remove('selected'));
+                // Add selected class to clicked card
+                card.classList.add('selected');
+                // Update candidate number hidden input or input element for scoring
+                const candidateNumberInput = document.getElementById('candidateNumber');
+                if(candidateNumberInput) candidateNumberInput.value = candidate.number;
+            });
 
             // clicking the image should show inline enlarged preview by default.
             const imgEl = card.querySelector('.candidate-card-image');
@@ -211,8 +227,11 @@ class PageantJudgingSystem {
 
                 imgEl.addEventListener('click', (ev) => {
                     ev.stopPropagation(); // avoid double-triggering card click handlers
-                    // Show inline preview (selectCandidate already updates the inline preview)
-                    this.selectCandidate(candidate.number, card);
+                    // Show inline preview (same select behavior as card click)
+                    document.querySelectorAll('.candidate-card.selected').forEach(c => c.classList.remove('selected'));
+                    card.classList.add('selected');
+                    const candidateNumberInput = document.getElementById('candidateNumber');
+                    if(candidateNumberInput) candidateNumberInput.value = candidate.number;
 
                     // If user holds Ctrl (Windows) or Meta (Mac) while clicking, open full lightbox
                     if (ev.ctrlKey || ev.metaKey) {
@@ -224,7 +243,11 @@ class PageantJudgingSystem {
                 imgEl.addEventListener('keydown', (ev) => {
                     if (ev.key === 'Enter' || ev.key === ' ') {
                         ev.preventDefault();
-                        this.selectCandidate(candidate.number, card);
+                        document.querySelectorAll('.candidate-card.selected').forEach(c => c.classList.remove('selected'));
+                        card.classList.add('selected');
+                        const candidateNumberInput = document.getElementById('candidateNumber');
+                        if(candidateNumberInput) candidateNumberInput.value = candidate.number;
+
                         if (ev.shiftKey) {
                             this.openLightbox(candidate);
                         } else {
@@ -451,8 +474,25 @@ class PageantJudgingSystem {
             return;
         }
 
-        const confirmed = confirm(`Submit scores for Candidate ${candidateNumber} (${data.totalScore.toFixed(1)})?`);
-        if (!confirmed) return;
+        let candidateName = '';
+        if (typeof CANDIDATES_DATA !== "undefined") {
+            const cand = CANDIDATES_DATA.find(c => c.number == candidateNumber);
+            candidateName = cand ? cand.name : `#${candidateNumber}`;
+        } else {
+            candidateName = `#${candidateNumber}`;
+        }
+
+        const result = await Swal.fire({
+            title: 'Are you sure?',
+            html: `Are you sure these are the final scores for <b>${candidateName}</b>?<br>Total Score: <b>${data.totalScore.toFixed(1)}</b>`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, submit',
+            cancelButtonText: 'Cancel',
+            focusCancel: true
+        });
+
+        if (!result.isConfirmed) return;
 
         try {
             this.toggleSubmitLoading(true);
@@ -523,19 +563,171 @@ class PageantJudgingSystem {
         }
     }
 
+    // helper: compute total from candidate.scores using category criteria (client-side)
+    computeTotalForCategory(candidate, category) {
+        const criteria = CATEGORIES[category]?.criteria || [];
+        if (!candidate || !candidate.scores || criteria.length === 0) return 0;
+        return criteria.reduce((sum, crit) => {
+            const v = parseFloat(candidate.scores?.[crit.name]) || 0;
+            return sum + v;
+        }, 0);
+    }
+
+    // helper: try to obtain a category total (0-100) from various candidate shapes
+    getCategoryTotalPercent(candidate, categoryKey) {
+        // 1) If candidate already has scores for that category by criteria, use computeTotalForCategory
+        const totalFromCriteria = this.computeTotalForCategory(candidate, categoryKey);
+        if (totalFromCriteria > 0) return Math.min(100, (totalFromCriteria / (CATEGORIES[categoryKey]?.total || 100)) * 100);
+
+        // 2) If candidate has nested breakdown per category (common shapes)
+        if (candidate.scoresByCategory && candidate.scoresByCategory[categoryKey]) {
+            const obj = candidate.scoresByCategory[categoryKey];
+            if (typeof obj.total === 'number') return Math.min(100, (obj.total / (CATEGORIES[categoryKey]?.total || 100)) * 100);
+            // try summing numeric values in obj
+            const sum = Object.values(obj).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+            if (sum > 0) return Math.min(100, (sum / (CATEGORIES[categoryKey]?.total || 100)) * 100);
+        }
+
+        // 3) Common alternate shapes: candidate.totalScores[categoryKey] or candidate[categoryKey + 'Total']
+        if (candidate.totalScores && typeof candidate.totalScores[categoryKey] === 'number') {
+            return Math.min(100, (candidate.totalScores[categoryKey] / (CATEGORIES[categoryKey]?.total || 100)) * 100);
+        }
+        const altKey = categoryKey + 'Total';
+        if (typeof candidate[altKey] === 'number') {
+            return Math.min(100, (candidate[altKey] / (CATEGORIES[categoryKey]?.total || 100)) * 100);
+        }
+
+        // 4) fallback to candidate.totalScore if categoryKey matches current category (not useful here) -> return 0
+        return 0;
+    }
+
+    // compute average "Overall Impact" from talent, sports, gown, interview (each normalized 0..1)
+    computeOverallImpactAverage(candidate) {
+        const cats = ['talent', 'sports', 'gown', 'interview'];
+        let sumFraction = 0;
+        let count = 0;
+
+        cats.forEach(cat => {
+            const crits = CATEGORIES[cat]?.criteria || [];
+            // find criterion named "Overall Impact" or "Audience Impact" fallback for talent
+            const targetNames = ['Overall Impact', 'Audience Impact'];
+            let found = false;
+            for (const target of targetNames) {
+                const crit = crits.find(c => c.name === target);
+                if (crit) {
+                    // prefer candidate.scoresByCategory if present
+                    let val = null;
+                    if (candidate.scoresByCategory && candidate.scoresByCategory[cat] && candidate.scoresByCategory[cat][target] !== undefined) {
+                        val = parseFloat(candidate.scoresByCategory[cat][target]) || 0;
+                    } else if (candidate.scores && candidate.scores[target] !== undefined && typeof candidate.scores[target] === 'number') {
+                        // NOTE: global candidate.scores may not be namespaced; only use if present
+                        val = parseFloat(candidate.scores[target]) || 0;
+                    } else if (candidate.scoresByCategory && candidate.scoresByCategory[cat]) {
+                        // try to find any numeric field named similarly
+                        const obj = candidate.scoresByCategory[cat];
+                        val = Object.entries(obj).reduce((v, [k, x]) => (k === target ? (parseFloat(x) || 0) : v), null);
+                    }
+                    if (val === null) val = 0;
+                    sumFraction += (val / (crit.maxScore || 1));
+                    count++;
+                    found = true;
+                    break;
+                }
+            }
+            // if no matching criterion found in CATEGORIES for this cat, skip
+            if (!found) {
+                // try to sniff a numeric "Overall Impact" in scoresByCategory if present
+                if (candidate.scoresByCategory && candidate.scoresByCategory[cat]) {
+                    const obj = candidate.scoresByCategory[cat];
+                    const key = Object.keys(obj).find(k => /overall impact|impact/i.test(k));
+                    if (key) {
+                        const v = parseFloat(obj[key]) || 0;
+                        // best-effort maxScore guess (10) to avoid bias
+                        sumFraction += (v / 10);
+                        count++;
+                    }
+                }
+            }
+        });
+
+        return count > 0 ? (sumFraction / count) : 0;
+    }
+
+    // compute the composite overall score (0-100) using weights:
+    // 45% Interview total, 15% Sports total, 15% Gown total, 25% Overall Impact (averaged across categories)
+    computeOverallComposite(candidate) {
+        // get category totals as percents (0..100)
+        const interviewPct = this.getCategoryTotalPercent(candidate, 'interview'); // 0..100
+        const sportsPct = this.getCategoryTotalPercent(candidate, 'sports');
+        const gownPct = this.getCategoryTotalPercent(candidate, 'gown');
+
+        // compute overall impact average fraction (0..1), then scale to 25 points
+        const impactAvgFraction = this.computeOverallImpactAverage(candidate); // 0..1
+        const impactPoints = impactAvgFraction * 100; // normalized to 0..100
+
+        // weights
+        const interviewWeight = 0.45;
+        const sportsWeight = 0.15;
+        const gownWeight = 0.15;
+        const impactWeight = 0.25;
+
+        const composite = (interviewPct * interviewWeight) +
+                          (sportsPct * sportsWeight) +
+                          (gownPct * gownWeight) +
+                          (impactPoints * impactWeight);
+
+        return Math.round(composite * 100) / 100; // two-decimal
+    }
+
+    // Updated displayResults: uses computed totals for 'overall' and labels top-4 placements
     displayResults(results, category) {
         if (!results || results.length === 0) {
             this.results.innerHTML = '<div class="loading">No results available yet. Start scoring to see results!</div>';
             return;
         }
 
+        // If candidate breakdowns exist, compute totals for sorting when showing overall category
+        let arr = results.slice();
+
+        if (category === 'overall') {
+            arr.sort((a, b) => {
+                const ta = this.computeOverallComposite(a);
+                const tb = this.computeOverallComposite(b);
+                return tb - ta;
+            });
+        } else {
+            // fallback sort by provided totalScore
+            arr.sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
+        }
+
+        const placementTitles = [
+            'Binibining Minero 2025',
+            '1st Runner-up',
+            '2nd Runner-up',
+            'Consolation Prize'
+        ];
+
         let html = '';
-        results.forEach((candidate, index) => {
+        arr.forEach((candidate, index) => {
             const rankClass = index < 3 ? `rank-${index + 1}` : '';
             const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '';
             const candidateData = CANDIDATES_DATA.find(c => c.number == candidate.candidate);
             const candidateImage = candidateData ? candidateData.image : '';
             const candidateName = candidateData ? candidateData.name : `Candidate ${candidate.candidate}`;
+
+            // compute display total: if viewing overall, use composite; otherwise try breakdown or provided totalScore
+            let displayTotal = 0;
+            if (category === 'overall') {
+                displayTotal = this.computeOverallComposite(candidate);
+            } else {
+                const criteria = CATEGORIES[category]?.criteria || [];
+                const hasBreakdown = candidate.scores && Object.keys(candidate.scores).length > 0 && criteria.length > 0;
+                const computedTotal = hasBreakdown ? this.computeTotalForCategory(candidate, category) : null;
+                displayTotal = (computedTotal !== null) ? computedTotal : (candidate.totalScore || 0);
+            }
+
+            // optional placement title for top 4 when viewing overall
+            const placementTitle = (category === 'overall' && index < 4) ? `<div class="placement-title">${placementTitles[index]}</div>` : '';
 
             html += `
                 <div class="ranking-item ${rankClass}">
@@ -547,12 +739,13 @@ class PageantJudgingSystem {
                     <div class="candidate-info">
                         <div class="candidate-number">Candidate ${candidate.candidate}</div>
                         <div class="candidate-name">${candidateName}</div>
+                        ${placementTitle}
                         <div class="candidate-scores">
                             ${this.getScoreBreakdown(candidate, category)}
                         </div>
                         <div class="num-judges">Based on ${candidate.numberOfScores} judge${candidate.numberOfScores !== 1 ? 's' : ''}</div>
                     </div>
-                    <div class="total-score">${candidate.totalScore.toFixed(2)}</div>
+                    <div class="total-score">${parseFloat(displayTotal).toFixed(2)}</div>
                 </div>
             `;
         });
@@ -560,8 +753,24 @@ class PageantJudgingSystem {
         this.results.innerHTML = html;
     }
 
+    // display breakdown for overall uses computed components
     getScoreBreakdown(candidate, category) {
         const criteria = CATEGORIES[category]?.criteria || [];
+        
+        if (category === 'overall') {
+            // Compute components
+            const interviewPct = this.getCategoryTotalPercent(candidate, 'interview');
+            const sportsPct = this.getCategoryTotalPercent(candidate, 'sports');
+            const gownPct = this.getCategoryTotalPercent(candidate, 'gown');
+            const impactFraction = this.computeOverallImpactAverage(candidate);
+
+            const interviewPoints = (interviewPct * 0.45).toFixed(2);
+            const sportsPoints = (sportsPct * 0.15).toFixed(2);
+            const gownPoints = (gownPct * 0.15).toFixed(2);
+            const impactPoints = (impactFraction * 100 * 0.25).toFixed(2);
+
+            return `<span class="score-breakdown">Q&A(45%): ${interviewPoints} | Sports(15%): ${sportsPoints} | Gown(15%): ${gownPoints} | Impact(25%): ${impactPoints}</span>`;
+        }
         
         if (criteria.length === 0) {
             return '<span class="score-breakdown">No breakdown available</span>';
@@ -579,142 +788,10 @@ class PageantJudgingSystem {
         
         return `<span class="score-breakdown">${breakdown}</span>`;
     }
-
-    getShortenedName(name) {
-		const abbreviations = {
-			'Intelligence (Q&A)': 'Q&A',
-			'Stage Present': 'Stage',
-			'Mastery': 'Mastery',
-			'Execution of Talent': 'Execution',
-			'Audience Impact': 'Impact',
-			'Suitability': 'Suit',
-			'Sports Identity': 'Identity',
-			'Poise and Bearing': 'Poise',
-			'Overall Impact': 'Impact',
-			'Design and Fitting': 'Design',
-			'Natural Smile and Look': 'Smile',
-			'Poise and Confidence': 'Confidence',
-			'Personality': 'Personality',
-			'Beauty': 'Beauty',
-			'Wit and Content': 'Wit',
-			'Projection and Delivery': 'Delivery',
-			'Stage Presence': 'Presence'
-		};
-
-		return abbreviations[name] || name;
-	}
-
-    // Restore judge dropdown from the initial snapshot and enable it
-    restoreJudgeDropdown() {
-        if (!this.judgeNameSelect) return;
-        this.judgeNameSelect.innerHTML = '';
-        this.initialJudgeOptions.forEach(opt => {
-            const option = document.createElement('option');
-            option.value = opt.value;
-            option.textContent = opt.text;
-            if (opt.selected) option.selected = true;
-            this.judgeNameSelect.appendChild(option);
-        });
-        this.judgeNameSelect.disabled = false;
-    }
-
-    // Logout: clear stored role, restore judge dropdown, show role selection modal
-    logout() {
-        // Clear selected role and persisted judge
-        this.selectedRole = null;
-        localStorage.removeItem('selectedJudge');
-
-        // Clear hidden input so submissions won't include stale judge
-        if (this.hiddenJudgeInput) this.hiddenJudgeInput.value = '';
-
-        // Restore the judge select to its original options/state
-        this.restoreJudgeDropdown();
-
-        // Hide main UI and show the role selection modal
-        this.mainContent.style.display = 'none';
-        this.roleSelectionModal.classList.remove('hidden');
-
-        // Reset sections to default
-        if (this.scoringSection) this.scoringSection.style.display = 'block';
-        if (this.resultsSection) this.resultsSection.style.display = 'none';
-
-        // Hide logout button until a new role is chosen
-        if (this.logoutBtn) this.logoutBtn.classList.add('hidden');
-
-        // restore focus to first role button for easy selection
-        setTimeout(() => {
-            const firstBtn = this.roleSelectionModal.querySelector('button[data-role]');
-            if (firstBtn) firstBtn.focus();
-        }, 80);
-
-        // re-hide any toast/message after logout to avoid stale messages
-        if (this.message) this.message.className = 'message hidden';
-        this.updateJudgeBadge(null);
-    }
-
-    selectCandidate(candidateNumber, cardElement) {
-        // Update hidden input
-        document.getElementById('candidateNumber').value = candidateNumber;
-
-        // Remove selected class from all cards
-        document.querySelectorAll('.candidate-card').forEach(card => {
-            card.classList.remove('selected');
-        });
-
-        // Add selected class to clicked card
-        cardElement.classList.add('selected');
-
-        // Update candidate showcase (left)
-        this.updateCandidateShowcase(candidateNumber);
-
-        // Recalculate total (in case there's any dependency)
-        this.calculateTotal();
-    }
-
-    // render the big inline preview inside the scoring panel
-    updateSelectedPreview(candidate) {
-        const preview = document.getElementById('selectedPreview');
-        if (!preview) return;
-
-        preview.innerHTML = `
-            <div class="selected-img-wrapper">
-                <img src="${candidate.image}" alt="Candidate ${candidate.number}: ${candidate.name}" class="selected-image" />
-            </div>
-            <div class="selected-info">
-                <div class="selected-name">${candidate.name}</div>
-                <div class="selected-number">Candidate #${candidate.number}</div>
-                <div class="selected-actions" style="margin-top:8px;">
-                    <button type="button" class="submit-btn small" id="previewScoreBtn">Score this candidate</button>
-                    <button type="button" class="logout-btn small" id="previewHideBtn" style="margin-left:8px; background:#6b7280;">Hide</button>
-                </div>
-            </div>
-        `;
-        preview.classList.remove('hidden');
-        preview.classList.add('visible');
-        preview.setAttribute('aria-hidden', 'false');
-
-        // wire preview buttons
-        const previewScoreBtn = document.getElementById('previewScoreBtn');
-        if (previewScoreBtn) {
-            previewScoreBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                // focus first score input
-                const firstInput = document.querySelector('.criteria-score-input');
-                if (firstInput) firstInput.focus();
-            });
-        }
-        const previewHideBtn = document.getElementById('previewHideBtn');
-        if (previewHideBtn) {
-            previewHideBtn.addEventListener('click', () => {
-                preview.classList.add('hidden');
-                preview.classList.remove('visible');
-                preview.setAttribute('aria-hidden', 'true');
-            });
-        }
-    }
 }
 
 // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     new PageantJudgingSystem();
 });
+

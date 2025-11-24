@@ -350,6 +350,7 @@ input:read-only {
   width: 100%;
 }
 
+
 .candidate-card-image {
   width: 100%;
   aspect-ratio: 3 / 4;
@@ -357,6 +358,13 @@ input:read-only {
   border-radius: 8px;
   border: 2px solid var(--border-color);
   transition: var(--transition-smooth);
+}
+
+/* Highlight outer line on selected candidate picture */
+.candidate-card.selected .candidate-card-image {
+  border-color: var(--primary-color);
+  outline: 3px solid var(--primary-color);
+  outline-offset: 3px;
 }
 
 .candidate-number-badge {
