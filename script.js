@@ -787,6 +787,33 @@ class PageantJudgingSystem {
         
         return `<span class="score-breakdown">${breakdown}</span>`;
     }
+
+    // Shorten criterion names for compact display in score breakdown
+    getShortenedName(name) {
+        const map = {
+            'Stage Present': 'Stage',
+            'Mastery': 'Mast',
+            'Execution of Talent': 'Exec',
+            'Audience Impact': 'Audience',
+            'Suitability': 'Suit',
+            'Sports Identity': 'Sport ID',
+            'Poise and Bearing': 'Poise',
+            'Overall Impact': 'Impact',
+            'Design and Fitting': 'Design',
+            'Stage Deportment': 'Stage Dep',
+            'Natural Smile and Look': 'Smile',
+            'Poise and Confidence': 'Confidence',
+            'Personality': 'Personality',
+            'Beauty': 'Beauty',
+            'Wit and Content': 'Wit',
+            'Projection and Delivery': 'Projection',
+            'Stage Presence': 'Stage Pres',
+            'Intelligence (Q&A)': 'Intelligence',
+            'Sports Wear': 'Sports Wear',
+            'Gown': 'Gown'
+        };
+        return map[name] || name;
+    }
 }
 
 // Initialize the application when DOM is loaded

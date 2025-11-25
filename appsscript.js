@@ -31,12 +31,20 @@ function submitScore(data) {
         const sheet = getSheet(data.category);
         const timestamp = new Date();
 
+        // Determine totalScore to save:
+        // For overall category, if weightedTotal is present, use it;
+        // otherwise use data.totalScore
+        let totalScoreToSave = data.totalScore;
+        if (data.category === 'overall' && data.weightedTotal != null) {
+            totalScoreToSave = data.weightedTotal;
+        }
+
         // Prepare row data
         const rowData = [
             timestamp,
             data.judgeName,
             data.candidateNumber,
-            data.totalScore
+            totalScoreToSave
         ];
 
         // Add individual criterion scores
@@ -56,10 +64,28 @@ function submitScore(data) {
 
 function getResults(category) {
     try {
-        const sheet = getSheet(category);
-        const data = sheet.getDataRange().getValues();
+        if (!category || typeof category !== 'string') {
+            Logger.log('Invalid category parameter in getResults: ' + category);
+            return createResponse('error', 'Invalid category parameter');
+        }
 
-        if (data.length <= 1) {
+        const sheet = getSheet(category);
+        if (!sheet) {
+            Logger.log(`Sheet for category "${category}" not found or could not be created`);
+            return createResponse('error', `Sheet for category "${category}" not found or could not be created`);
+        }
+
+        const dataRange = sheet.getDataRange();
+        if (!dataRange) {
+            Logger.log(`No data found in sheet for category "${category}"`);
+            return createResponse('error', `No data found in sheet for category "${category}"`);
+        }
+
+        const data = dataRange.getValues();
+
+        if (!Array.isArray(data) || data.length <= 1) {
+            // No data or only header row
+            Logger.log(`No scoring data rows for category "${category}"`);
             return ContentService
                 .createTextOutput(JSON.stringify({
                     status: 'success',
@@ -70,6 +96,23 @@ function getResults(category) {
 
         // Skip header row
         const rows = data.slice(1);
+
+        if (!rows.every(row => Array.isArray(row))) {
+            Logger.log('Malformed data found in sheet rows for category: ' + category);
+            return createResponse('error', 'Malformed data found in sheet rows');
+        }
+
+        // Defensive check for null or undefined rows and cells
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            if (!row || !Array.isArray(row)) {
+                Logger.log(`Skipping null or invalid row at index ${i}: ${JSON.stringify(row)}`);
+                rows.splice(i, 1);
+                i--;
+                continue;
+            }
+        }
+
         const results = calculateResults(rows, category);
 
         return ContentService
@@ -79,18 +122,40 @@ function getResults(category) {
             }))
             .setMimeType(ContentService.MimeType.JSON);
     } catch (error) {
+        Logger.log('Error in getResults: ' + error.stack);
         return createResponse('error', 'Results Error: ' + error.message);
     }
 }
 
 function calculateResults(rows, category) {
     const candidateScores = {};
-    const criteria = getCategoryCriteria(category);
+    const criteria = getCategoryCriteria(category) || [];
+
+    if (!Array.isArray(rows)) {
+        Logger.log('Invalid rows data in calculateResults');
+        throw new Error('Invalid rows data');
+    }
 
     // Group scores by candidate
-    rows.forEach(row => {
-        const candidate = row[2]; // candidate number
-        const totalScore = row[3]; // total score
+    rows.forEach((row, rowIndex) => {
+        // Defensive checks for expected columns
+        if (!Array.isArray(row) || row.length < 4) {
+            Logger.log(`Skipping malformed row at index ${rowIndex}: ${JSON.stringify(row)}`);
+            return;
+        }
+
+        const candidate = row[2]; // candidate number at col 3 expected
+        const totalScore = parseFloat(row[3]);
+
+        if (!candidate) {
+            Logger.log(`Skipping row with missing candidate number at index ${rowIndex}`);
+            return;
+        }
+
+        if (isNaN(totalScore)) {
+            Logger.log(`Skipping row with invalid totalScore at index ${rowIndex}: ${row[3]}`);
+            return;
+        }
 
         if (!candidateScores[candidate]) {
             candidateScores[candidate] = {
@@ -98,39 +163,45 @@ function calculateResults(rows, category) {
                 criterionScores: {}
             };
 
-            // Initialize criterion scores object
-            criteria.forEach((criterion, index) => {
+            criteria.forEach((criterion) => {
                 candidateScores[candidate].criterionScores[criterion.name] = [];
             });
         }
 
-        // Add total score
         candidateScores[candidate].totalScores.push(totalScore);
 
-        // Add individual criterion scores (starting from column 4)
         criteria.forEach((criterion, index) => {
-            const criterionScore = row[4 + index] || 0;
+            const rawScore = row[4 + index];
+            const criterionScore = (typeof rawScore === 'number' && !isNaN(rawScore)) ? rawScore : 0;
             candidateScores[candidate].criterionScores[criterion.name].push(criterionScore);
         });
     });
 
-    // Calculate averages for each candidate
     const results = [];
     for (const [candidate, scores] of Object.entries(candidateScores)) {
-        // Calculate average total score
-        const totalAvg = scores.totalScores.reduce((sum, score) => sum + score, 0) / scores.totalScores.length;
+        const totalCount = scores.totalScores.length;
+        if (totalCount === 0) continue;
 
-        // Calculate average for each criterion
+        // Calculate average scores per criterion
         const avgScores = {};
         for (const [criterionName, criterionScores] of Object.entries(scores.criterionScores)) {
-            avgScores[criterionName] = criterionScores.reduce((sum, score) => sum + score, 0) / criterionScores.length;
+            const count = criterionScores.length;
+            avgScores[criterionName] = count > 0 ?
+                (criterionScores.reduce((sum, score) => sum + score, 0) / count) : 0;
         }
+
+        // Calculate weighted total score based on criteria percentages
+        let weightedTotal = 0;
+        criteria.forEach(criterion => {
+            const avg = avgScores[criterion.name] || 0;
+            weightedTotal += (avg * (criterion.percentage || 0)) / 100;
+        });
 
         results.push({
             candidate: candidate,
-            totalScore: totalAvg,
+            totalScore: weightedTotal,
             scores: avgScores,
-            numberOfScores: scores.totalScores.length
+            numberOfScores: totalCount
         });
     }
 
