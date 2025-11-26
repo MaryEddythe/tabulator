@@ -158,7 +158,7 @@ function getCategoryCriteria(category) {
             { name: "Stage Present", percentage: 30 },
             { name: "Mastery", percentage: 30 },
             { name: "Execution of Talent", percentage: 30 },
-            { name: "Audience Impact", percentage: 10 }
+            { name: "Overall Impact", percentage: 10 }
         ],
         sports: [
             { name: "Suitability", percentage: 30 },
@@ -280,7 +280,7 @@ function testSubmitScore() {
             "Stage Present": 25,
             "Mastery": 27,
             "Execution of Talent": 28,
-            "Audience Impact": 5.5
+            "Overall Impact": 5.5
         }
     };
     const result = submitScore(testData);

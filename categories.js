@@ -7,7 +7,7 @@ const CATEGORIES = {
             { name: "Stage Present", percentage: 30, maxScore: 30 },
             { name: "Mastery", percentage: 30, maxScore: 30 },
             { name: "Execution of Talent", percentage: 30, maxScore: 30 },
-            { name: "Audience Impact", percentage: 10, maxScore: 10 }
+            { name: "Overall Impact", percentage: 10, maxScore: 10 }
         ],
         total: 100
     },

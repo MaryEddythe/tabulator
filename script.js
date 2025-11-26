@@ -627,7 +627,7 @@ class PageantJudgingSystem {
             'Stage Present': 'Stage',
             'Mastery': 'Mast',
             'Execution of Talent': 'Exec',
-            'Audience Impact': 'Audience',
+            'Overall Impact': 'Overall',
             'Suitability': 'Suit',
             'Sports Identity': 'Sport ID',
             'Poise and Bearing': 'Poise',
