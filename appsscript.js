@@ -18,6 +18,8 @@ function doGet(e) {
             // Handle GET-based score submission (fallback for CORS)
             const data = JSON.parse(e.parameter.data);
             return submitScore(data);
+        } else if (action === 'calculateOverallScores') {
+            return calculateOverallScores();
         } else {
             return createResponse('error', 'Invalid action');
         }
@@ -31,13 +33,8 @@ function submitScore(data) {
         const sheet = getSheet(data.category);
         const timestamp = new Date();
 
-        // Determine totalScore to save:
-        // For overall category, if weightedTotal is present, use it;
-        // otherwise use data.totalScore
-        let totalScoreToSave = data.totalScore;
-        if (data.category === 'overall' && data.weightedTotal != null) {
-            totalScoreToSave = data.weightedTotal;
-        }
+        // Use totalScore directly (no special handling needed)
+        const totalScoreToSave = data.totalScore;
 
         // Prepare row data
         const rowData = [
@@ -69,6 +66,81 @@ function getResults(category) {
             return createResponse('error', 'Invalid category parameter');
         }
 
+        // If category is 'overall', read from the Overall Scores sheet
+        if (category === 'overall') {
+            const spreadsheet = SpreadsheetApp.openById('1gR29ljdFWJjYfu5t3hG-keJlGaDp8uUDDlrg_uPxD28');
+            const overallSheet = spreadsheet.getSheetByName('Overall Scores');
+            
+            if (!overallSheet) {
+                return ContentService
+                    .createTextOutput(JSON.stringify({
+                        status: 'success',
+                        results: []
+                    }))
+                    .setMimeType(ContentService.MimeType.JSON);
+            }
+            
+            const dataRange = overallSheet.getDataRange();
+            if (!dataRange) {
+                return ContentService
+                    .createTextOutput(JSON.stringify({
+                        status: 'success',
+                        results: []
+                    }))
+                    .setMimeType(ContentService.MimeType.JSON);
+            }
+            
+            const data = dataRange.getValues();
+            
+            if (!Array.isArray(data) || data.length <= 1) {
+                return ContentService
+                    .createTextOutput(JSON.stringify({
+                        status: 'success',
+                        results: []
+                    }))
+                    .setMimeType(ContentService.MimeType.JSON);
+            }
+            
+            // Skip header row
+            const rows = data.slice(1);
+            
+            // For overall category, we have a simpler structure
+            const results = [];
+            rows.forEach(row => {
+                const candidate = row[2]; // Candidate number
+                const overallScore = parseFloat(row[3]); // Overall score
+                const interviewTotal = parseFloat(row[4]);
+                const sportsTotal = parseFloat(row[5]);
+                const gownTotal = parseFloat(row[6]);
+                const overallImpactScore = parseFloat(row[7]);
+                
+                if (candidate && !isNaN(overallScore)) {
+                    results.push({
+                        candidate: candidate,
+                        totalScore: overallScore,
+                        scores: {
+                            'Intelligence (Q&A)': interviewTotal,
+                            'Sports Wear': sportsTotal,
+                            'Gown': gownTotal,
+                            'Overall Impact': overallImpactScore
+                        },
+                        numberOfScores: 1 // This is calculated, not from individual judges
+                    });
+                }
+            });
+            
+            // Sort by total score (descending)
+            results.sort((a, b) => b.totalScore - a.totalScore);
+            
+            return ContentService
+                .createTextOutput(JSON.stringify({
+                    status: 'success',
+                    results: results
+                }))
+                .setMimeType(ContentService.MimeType.JSON);
+        }
+        
+        // For other categories, use the existing logic
         const sheet = getSheet(category);
         if (!sheet) {
             Logger.log(`Sheet for category "${category}" not found or could not be created`);
@@ -322,26 +394,126 @@ function setupAllSheets() {
     });
 }
 
-// Test function to verify script works
-function testGetResults() {
-    const result = getResults('overall');
-    Logger.log(result.getContent());
-}
-
-// Test function to verify submit works
-function testSubmitScore() {
-    const testData = {
-        judgeName: "Test Judge",
-        candidateNumber: "1",
-        category: "talent",
-        totalScore: 85.5,
-        scores: {
-            "Stage Present": 25,
-            "Mastery": 27,
-            "Execution of Talent": 28,
-            "Audience Impact": 5.5
+// NEW: Function to calculate overall scores from individual categories
+function calculateOverallScores() {
+    try {
+        const spreadsheet = SpreadsheetApp.openById('1gR29ljdFWJjYfu5t3hG-keJlGaDp8uUDDlrg_uPxD28');
+        
+        // Get all individual category sheets
+        const categories = ['interview', 'sports', 'gown'];
+        const categoryData = {};
+        
+        categories.forEach(category => {
+            const sheet = spreadsheet.getSheetByName(getSheetName(category));
+            if (sheet) {
+                const data = sheet.getDataRange().getValues();
+                if (data.length > 1) {
+                    categoryData[category] = data.slice(1); // Skip header
+                }
+            }
+        });
+        
+        // Get existing Overall Scores sheet or create it
+        let overallSheet = spreadsheet.getSheetByName('Overall Scores');
+        if (!overallSheet) {
+            overallSheet = spreadsheet.insertSheet('Overall Scores');
+            // Create header for Overall Scores sheet
+            const headers = ['Timestamp', 'Judge Name', 'Candidate Number', 'Overall Score', 
+                            'Interview Total', 'Sports Total', 'Gown Total', 'Overall Impact Score'];
+            overallSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+            overallSheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
+            overallSheet.autoResizeColumns(1, headers.length);
         }
-    };
-    const result = submitScore(testData);
-    Logger.log(result.getContent());
+        
+        // Clear existing data (except header)
+        const lastRow = overallSheet.getLastRow();
+        if (lastRow > 1) {
+            overallSheet.getRange(2, 1, lastRow - 1, overallSheet.getLastColumn()).clearContent();
+        }
+        
+        // Calculate overall scores for each candidate
+        const candidateScores = {};
+        
+        // Process each category
+        Object.keys(categoryData).forEach(category => {
+            const data = categoryData[category];
+            data.forEach(row => {
+                const candidate = row[2]; // Candidate number
+                const totalScore = parseFloat(row[3]); // Total score
+                const overallImpactScore = parseFloat(row[7]); // Overall Impact score (column index 7)
+                
+                if (candidate && !isNaN(totalScore) && !isNaN(overallImpactScore)) {
+                    if (!candidateScores[candidate]) {
+                        candidateScores[candidate] = {
+                            interview: { total: [], overallImpact: [] },
+                            sports: { total: [], overallImpact: [] },
+                            gown: { total: [], overallImpact: [] }
+                        };
+                    }
+                    
+                    // Add the scores to the respective category
+                    if (category === 'interview') {
+                        candidateScores[candidate].interview.total.push(totalScore);
+                        candidateScores[candidate].interview.overallImpact.push(overallImpactScore);
+                    } else if (category === 'sports') {
+                        candidateScores[candidate].sports.total.push(totalScore);
+                        candidateScores[candidate].sports.overallImpact.push(overallImpactScore);
+                    } else if (category === 'gown') {
+                        candidateScores[candidate].gown.total.push(totalScore);
+                        candidateScores[candidate].gown.overallImpact.push(overallImpactScore);
+                    }
+                }
+            });
+        });
+        
+        // Calculate weighted averages and add to Overall Scores sheet
+        Object.keys(candidateScores).forEach(candidate => {
+            const scores = candidateScores[candidate];
+            
+            // Calculate average total scores for each category
+            const avgInterviewTotal = scores.interview.total.length > 0 ? 
+                scores.interview.total.reduce((a, b) => a + b, 0) / scores.interview.total.length : 0;
+            
+            const avgSportsTotal = scores.sports.total.length > 0 ? 
+                scores.sports.total.reduce((a, b) => a + b, 0) / scores.sports.total.length : 0;
+            
+            const avgGownTotal = scores.gown.total.length > 0 ? 
+                scores.gown.total.reduce((a, b) => a + b, 0) / scores.gown.total.length : 0;
+            
+            // Calculate average overall impact scores
+            const avgInterviewImpact = scores.interview.overallImpact.length > 0 ? 
+                scores.interview.overallImpact.reduce((a, b) => a + b, 0) / scores.interview.overallImpact.length : 0;
+            
+            const avgSportsImpact = scores.sports.overallImpact.length > 0 ? 
+                scores.sports.overallImpact.reduce((a, b) => a + b, 0) / scores.sports.overallImpact.length : 0;
+            
+            const avgGownImpact = scores.gown.overallImpact.length > 0 ? 
+                scores.gown.overallImpact.reduce((a, b) => a + b, 0) / scores.gown.overallImpact.length : 0;
+            
+            // Calculate overall impact score as average of the three
+            const overallImpactScore = (avgInterviewImpact + avgSportsImpact + avgGownImpact) / 3;
+            
+            // Calculate weighted overall score
+            const overallScore = (avgInterviewTotal * 0.45) + 
+                               (avgSportsTotal * 0.15) + 
+                               (avgGownTotal * 0.15) + 
+                               (overallImpactScore * 0.25);
+            
+            // Add row to Overall Scores sheet
+            overallSheet.appendRow([
+                new Date(),
+                'Calculated Overall',
+                candidate,
+                overallScore,
+                avgInterviewTotal,
+                avgSportsTotal,
+                avgGownTotal,
+                overallImpactScore
+            ]);
+        });
+        
+        return createResponse('success', 'Overall scores calculated successfully');
+    } catch (error) {
+        return createResponse('error', 'Error calculating overall scores: ' + error.message);
+    }
 }

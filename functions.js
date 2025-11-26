@@ -59,9 +59,35 @@
         }
     }
 
+    // NEW: Function to calculate overall scores
+    async function calculateOverallScores() {
+        try {
+            const url = `${SCRIPT_URL}?action=calculateOverallScores`;
+            const response = await fetch(url, { method: 'GET', redirect: 'follow' });
+            const text = await response.text();
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${text}`);
+            }
+
+            let result;
+            try {
+                result = JSON.parse(text);
+            } catch (err) {
+                throw new Error('Invalid JSON response from server.');
+            }
+
+            return result;
+        } catch (err) {
+            console.error('AppFunctions.calculateOverallScores error:', err);
+            throw err;
+        }
+    }
+
     // Export to global
     window.AppFunctions = {
         submitScore,
-        fetchResults
+        fetchResults,
+        calculateOverallScores
     };
 })();
