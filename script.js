@@ -665,19 +665,14 @@ class PageantJudgingSystem {
         return count > 0 ? (sumFraction / count) : 0;
     }
 
-    // compute the composite overall score (0-100) using weights:
-    // 45% Interview total, 15% Sports total, 15% Gown total, 25% Overall Impact (averaged across categories)
     computeOverallComposite(candidate) {
-        // get category totals as percents (0..100)
-        const interviewPct = this.getCategoryTotalPercent(candidate, 'interview'); // 0..100
+        const interviewPct = this.getCategoryTotalPercent(candidate, 'interview'); 
         const sportsPct = this.getCategoryTotalPercent(candidate, 'sports');
         const gownPct = this.getCategoryTotalPercent(candidate, 'gown');
 
-        // compute overall impact average fraction (0..1), then scale to 25 points
-        const impactAvgFraction = this.computeOverallImpactAverage(candidate); // 0..1
-        const impactPoints = impactAvgFraction * 100; // normalized to 0..100
+        const impactAvgFraction = this.computeOverallImpactAverage(candidate); 
+        const impactPoints = impactAvgFraction * 100; 
 
-        // weights
         const interviewWeight = 0.45;
         const sportsWeight = 0.15;
         const gownWeight = 0.15;
@@ -688,17 +683,15 @@ class PageantJudgingSystem {
                           (gownPct * gownWeight) +
                           (impactPoints * impactWeight);
 
-        return Math.round(composite * 100) / 100; // two-decimal
+        return Math.round(composite * 100) / 100; 
     }
 
-    // Updated displayResults: uses computed totals for 'overall' and labels top-4 placements
     displayResults(results, category) {
         if (!results || results.length === 0) {
             this.results.innerHTML = '<div class="loading">No results available yet. Start scoring to see results!</div>';
             return;
         }
 
-        // If candidate breakdowns exist, compute totals for sorting when showing overall category
         let arr = results.slice();
 
         if (category === 'overall') {
@@ -708,7 +701,6 @@ class PageantJudgingSystem {
                 return tb - ta;
             });
         } else {
-            // fallback sort by provided totalScore
             arr.sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
         }
 
@@ -752,12 +744,10 @@ class PageantJudgingSystem {
         this.results.innerHTML = html;
     }
 
-    // display breakdown for overall uses computed components
     getScoreBreakdown(candidate, category) {
         const criteria = CATEGORIES[category]?.criteria || [];
         
         if (category === 'overall') {
-            // Compute components
             const interviewPct = this.getCategoryTotalPercent(candidate, 'interview');
             const sportsPct = this.getCategoryTotalPercent(candidate, 'sports');
             const gownPct = this.getCategoryTotalPercent(candidate, 'gown');
@@ -788,7 +778,6 @@ class PageantJudgingSystem {
         return `<span class="score-breakdown">${breakdown}</span>`;
     }
 
-    // Shorten criterion names for compact display in score breakdown
     getShortenedName(name) {
         const map = {
             'Stage Present': 'Stage',
@@ -816,7 +805,6 @@ class PageantJudgingSystem {
     }
 }
 
-// Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     new PageantJudgingSystem();
 });
