@@ -604,13 +604,14 @@ class PageantJudgingSystem {
 
     getScoreBreakdown(candidate, category) {
         if (category === 'overall') {
-            // For overall, show weighted components
+            // For overall, show weighted contributions with full names
             const criteria = CATEGORIES[category]?.criteria || [];
             let breakdown = '';
             criteria.forEach((criterion, index) => {
-                const score = candidate.scores?.[criterion.name]?.toFixed(1) || '0.0';
+                const avgScore = candidate.scores?.[criterion.name] || 0;
                 const percentage = criterion.percentage;
-                breakdown += `${this.getShortenedName(criterion.name)}: ${score} (${percentage}%)`;
+                const weightedScore = avgScore * (percentage / 100);
+                breakdown += `${criterion.name}: ${weightedScore.toFixed(2)}`;
                 if (index < criteria.length - 1) {
                     breakdown += ' | ';
                 }

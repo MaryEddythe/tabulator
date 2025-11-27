@@ -554,9 +554,9 @@ input:read-only {
 /* ============= MESSAGE ============= */
 .message {
   position: fixed;
-  top: 18px;
+  top: 50%;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   z-index: 2000;
   max-width: 920px;
   width: calc(100% - 40px);

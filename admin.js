@@ -272,23 +272,6 @@ function testGetResults() {
     Logger.log(result.getContent());
 }
 
-// Test function to verify submit works
-function testSubmitScore() {
-    const testData = {
-        judgeName: "Test Judge",
-        candidateNumber: "1",
-        category: "talent",
-        totalScore: 85.5,
-        scores: {
-            "Stage Present": 25,
-            "Mastery": 27,
-            "Execution of Talent": 28,
-            "Overall Impact": 5.5
-        }
-    };
-    const result = submitScore(testData);
-    Logger.log(result.getContent());
-}
 
   function renderResults(results, category) {
     if (!results || results.length === 0) {
