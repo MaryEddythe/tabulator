@@ -89,60 +89,63 @@ function calculateResults(rows, category) {
 
     // Group scores by candidate
     rows.forEach(row => {
+        const judgeName = row[1]; // judge name
         const candidate = row[2]; // candidate number
         const totalScore = row[3]; // total score
 
         if (!candidateScores[candidate]) {
             candidateScores[candidate] = {
-                totalScores: [],
-                criterionScores: {}
+                judges: []
             };
-
-            // Initialize criterion scores object
-            criteria.forEach((criterion, index) => {
-                candidateScores[candidate].criterionScores[criterion.name] = [];
-            });
         }
 
-        // Add total score
-        candidateScores[candidate].totalScores.push(totalScore);
+        const judgeData = {
+            judgeName: judgeName,
+            totalScore: totalScore,
+            criterionScores: {}
+        };
 
         // Add individual criterion scores (starting from column 4)
         criteria.forEach((criterion, index) => {
-            const criterionScore = row[4 + index] || 0;
-            candidateScores[candidate].criterionScores[criterion.name].push(criterionScore);
+            judgeData.criterionScores[criterion.name] = row[4 + index] || 0;
         });
+
+        candidateScores[candidate].judges.push(judgeData);
     });
 
-    // Calculate averages for each candidate
+    // Calculate results for each candidate
     const results = [];
-    for (const [candidate, scores] of Object.entries(candidateScores)) {
+    for (const [candidate, data] of Object.entries(candidateScores)) {
+        const judges = data.judges;
+        const numberOfScores = judges.length;
+
         // Calculate average total score depending on category
         let totalAvg = 0;
 
         if (category === 'overall') {
             // Use weighted average for overall category
             const weightedSum = criteria.reduce((sum, criterion) => {
-                const avgCriterionScore = scores.criterionScores[criterion.name].reduce((s, sc) => s + sc, 0) / scores.criterionScores[criterion.name].length || 0;
+                const avgCriterionScore = judges.reduce((s, judge) => s + (judge.criterionScores[criterion.name] || 0), 0) / judges.length;
                 return sum + (avgCriterionScore * (criterion.percentage / 100));
             }, 0);
             totalAvg = weightedSum;
         } else {
-            // For other categories use average total score weighted equally as before
-            totalAvg = scores.totalScores.reduce((sum, score) => sum + score, 0) / scores.totalScores.length;
+            // For other categories use average total score
+            totalAvg = judges.reduce((sum, judge) => sum + judge.totalScore, 0) / judges.length;
         }
 
         // Calculate average for each criterion
         const avgScores = {};
-        for (const [criterionName, criterionScores] of Object.entries(scores.criterionScores)) {
-            avgScores[criterionName] = criterionScores.reduce((sum, score) => sum + score, 0) / criterionScores.length;
-        }
+        criteria.forEach(criterion => {
+            avgScores[criterion.name] = judges.reduce((sum, judge) => sum + (judge.criterionScores[criterion.name] || 0), 0) / judges.length;
+        });
 
         results.push({
             candidate: candidate,
             totalScore: totalAvg,
             scores: avgScores,
-            numberOfScores: scores.totalScores.length
+            judges: judges,
+            numberOfScores: numberOfScores
         });
     }
 

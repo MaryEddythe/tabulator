@@ -603,23 +603,37 @@ class PageantJudgingSystem {
     }
 
     getScoreBreakdown(candidate, category) {
-        const criteria = CATEGORIES[category]?.criteria || [];
-        
-        if (criteria.length === 0) {
-            return '<span class="score-breakdown">No breakdown available</span>';
-        }
-        
-        let breakdown = '';
-        criteria.forEach((criterion, index) => {
-            const score = candidate.scores?.[criterion.name]?.toFixed(1) || '0.0';
-            const shortName = this.getShortenedName(criterion.name);
-            breakdown += `${shortName}: ${score}`;
-            if (index < criteria.length - 1) {
-                breakdown += ' | ';
+        if (category === 'overall') {
+            // For overall, show weighted components
+            const criteria = CATEGORIES[category]?.criteria || [];
+            let breakdown = '';
+            criteria.forEach((criterion, index) => {
+                const score = candidate.scores?.[criterion.name]?.toFixed(1) || '0.0';
+                const percentage = criterion.percentage;
+                breakdown += `${this.getShortenedName(criterion.name)}: ${score} (${percentage}%)`;
+                if (index < criteria.length - 1) {
+                    breakdown += ' | ';
+                }
+            });
+            return `<span class="score-breakdown">${breakdown}</span>`;
+        } else {
+            // For category rankings, show individual judge scores
+            if (!candidate.judges || candidate.judges.length === 0) {
+                return '<span class="score-breakdown">No judge scores available</span>';
             }
-        });
-        
-        return `<span class="score-breakdown">${breakdown}</span>`;
+
+            let breakdown = '';
+            candidate.judges.forEach((judge, index) => {
+                const judgeName = judge.judgeName || `Judge ${index + 1}`;
+                const score = judge.totalScore?.toFixed(1) || '0.0';
+                breakdown += `${judgeName}: ${score}`;
+                if (index < candidate.judges.length - 1) {
+                    breakdown += ' | ';
+                }
+            });
+
+            return `<span class="score-breakdown">${breakdown}</span>`;
+        }
     }
 
     getShortenedName(name) {
