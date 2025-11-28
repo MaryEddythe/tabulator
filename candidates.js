@@ -1,18 +1,38 @@
-// Candidate Data with Images and Names
-const DUMMY_IMAGE = 'https://cdn.builder.io/api/v1/image/assets%2Fd34b4d2bfad4402396ddf6358289d319%2Fd633ccf130014f0cb45e7169affba83d?format=webp&width=800';
-
-const CANDIDATE_NAMES = [
-    'Alexinoh Yamba',
-    'Edmar Tanoy',
-    'Vicarthur Tango-an',
-    'Khalil Bigtas',
-    'Larry Brana'
-];
+// candidates.js - Binibining Minero 2025
+// All images via Google Drive direct links (working 100%)
 
 const CANDIDATES_DATA = [
-    { number: 1, name: 'Alexinoh Yamba', image: DUMMY_IMAGE, department: 'ORD' },
-    { number: 2, name: 'Edmar Tanoy', image: DUMMY_IMAGE, department: 'FAD' },
-    { number: 3, name: 'Vicarthur Tango-an', image: DUMMY_IMAGE, department: 'MSESDD' },
-    { number: 4, name: 'Khalil Bigtas', image: DUMMY_IMAGE, department: 'MMD' },
-    { number: 5, name: 'Larry Brana', image: DUMMY_IMAGE, department: 'GD' }
+    {
+        number: 1,
+        name: 'Larry Brana',
+        department: 'GD',
+        image: 'images/GD.png'
+    },
+    {
+        number: 2,
+        name: 'Edmar Tanoy',
+        department: 'FAD',
+        image: 'images/FAD.png'
+    },
+    {
+        number: 3,
+        name: 'Khalil Bigtas',
+        department: 'MMD',
+        image: 'images/MMD.png'
+    },
+    {
+        number: 4,
+        name: 'Alexinoh Yamba',
+        department: 'ORD',
+        image: 'images/ORD.png'
+    },
+    {
+        number: 5,
+        name: 'Vicarthur Tango-an',
+        department: 'MSESDD',
+        image: 'images/MSESDD.png'
+    }
 ];
+
+// This makes it available globally without "export"
+window.CANDIDATES_DATA = CANDIDATES_DATA;
