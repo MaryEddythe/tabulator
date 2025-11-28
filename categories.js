@@ -1,5 +1,4 @@
 // categories.js
-// Categories and Criteria Configuration
 const CATEGORIES = {
     talent: {
         title: "Best in Talent",
@@ -58,6 +57,16 @@ const CATEGORIES = {
             { name: "Sports Wear", percentage: 15, maxScore: 15 },
             { name: "Gown", percentage: 15, maxScore: 15 },
             { name: "Overall Impact", percentage: 25, maxScore: 25 }
+        ],
+        total: 100
+    },
+    productionNumber: {
+        title: "Best in Production Number",
+        criteria: [
+            { name: "Stage presence", percentage: 30, maxScore: 30 },
+            { name: "Mastery", percentage: 30, maxScore: 30 },
+            { name: "Projection", percentage: 30, maxScore: 30 },
+            { name: "Overall Impact", percentage: 10, maxScore: 10 }
         ],
         total: 100
     }

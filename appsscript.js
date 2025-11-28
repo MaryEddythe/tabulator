@@ -164,6 +164,12 @@ function getCategoryCriteria(category) {
       { name: "Projection and Delivery", percentage: 30 },
       { name: "Stage Presence", percentage: 20 },
       { name: "Overall Impact", percentage: 10 }
+    ],
+    productionNumber: [
+      { name: "Stage presence", percentage: 30 },
+      { name: "Mastery", percentage: 30 },
+      { name: "Projection", percentage: 30 },
+      { name: "Overall Impact", percentage: 10 }
     ]
   };
   return map[category] || [];
@@ -177,6 +183,7 @@ function getSheet(category) {
     gown: "Gown Scores",
     photogenic: "Photogenic Scores",
     interview: "Interview Scores",
+    productionNumber: "Production Number Scores",
     overall: "Overall Scores"
   }[category] || category;
 
